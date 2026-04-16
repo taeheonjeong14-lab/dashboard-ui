@@ -31,3 +31,4 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_ANON_KEY
 
 - 병원 마스터 데이터(`core.hospitals`) 수정은 다른 관리자 앱에서만 수행
 - 이 앱은 분석/키워드 타깃 UI 중심으로 사용
+- Vercel 환경변수를 변경한 경우 최신 설정 반영을 위해 재배포가 필요할 수 있음
