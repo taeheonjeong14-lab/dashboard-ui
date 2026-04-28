@@ -16,8 +16,8 @@ export default function LogoutPage() {
   }, [router]);
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md items-center justify-center px-4">
-      <p className="text-sm text-gray-600">로그아웃 처리 중...</p>
+    <main className="mx-auto flex min-h-screen w-full max-w-md items-center justify-center bg-zinc-950 px-4">
+      <p className="text-sm text-zinc-400">로그아웃 처리 중...</p>
     </main>
   );
 }

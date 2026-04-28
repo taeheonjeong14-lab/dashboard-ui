@@ -18,9 +18,9 @@ function formatNumber(value: number | null) {
   return new Intl.NumberFormat("ko-KR").format(value);
 }
 
-export default function Home() {
+export default function BlogPerformancePage() {
   const router = useRouter();
-  const [authReady, setAuthReady] = useState(false);
+  const [scopeReady, setScopeReady] = useState(false);
   const [rangeDays, setRangeDays] = useState<RangeDays>(30);
   const [hospitalId, setHospitalId] = useState<string | "all">("all");
   const [points, setPoints] = useState<BlogViewPoint[]>([]);
@@ -60,7 +60,7 @@ export default function Home() {
         setError(e instanceof Error ? e.message : "초기 데이터를 불러오지 못했습니다.");
         setIsReady(true);
       } finally {
-        if (active) setAuthReady(true);
+        if (active) setScopeReady(true);
       }
     }
     bootstrap();
@@ -105,49 +105,43 @@ export default function Home() {
     return Math.round(valid.reduce((sum, value) => sum + value, 0) / valid.length);
   }, [points]);
 
-  if (!authReady) {
+  if (!scopeReady) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-        <p className="text-sm text-gray-600">세션 확인 중…</p>
+      <main className="flex min-h-[40vh] items-center justify-center px-4">
+        <p className="text-sm text-zinc-400">데이터 준비 중…</p>
       </main>
     );
   }
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-6xl bg-gray-50 px-4 py-8">
+    <main className="min-h-screen w-full max-w-none px-4 py-8 sm:px-6 lg:px-8">
       <header className="mb-6 flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">블로그 조회수 대시보드</h1>
-          <p className="mt-1 text-sm text-gray-600">
-            Supabase analytics 데이터를 기준으로 최근 추이를 보여줍니다.
+          <h1 className="text-2xl font-bold text-zinc-50">네이버 블로그 실적</h1>
+          <p className="mt-1 text-sm text-zinc-400">
+            Supabase analytics 데이터 기준 블로그 조회수 추이입니다.
           </p>
         </div>
         <div className="flex gap-2">
           <Link
             href="/keywords"
-            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700"
+            className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 transition hover:bg-zinc-800"
           >
-            순위 키워드
-          </Link>
-          <Link
-            href="/logout"
-            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700"
-          >
-            로그아웃
+            순위 키워드 관리
           </Link>
         </div>
       </header>
 
       <section className="mb-6 grid grid-cols-1 gap-3 md:grid-cols-2">
-        <label className="rounded-xl border border-gray-200 bg-white p-3 text-sm">
-          <span className="mb-2 block text-gray-600">병원</span>
+        <label className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-3 text-sm">
+          <span className="mb-2 block text-zinc-400">병원</span>
           <select
             value={hospitalId}
             onChange={(e) => {
               setLoading(true);
               setHospitalId(e.target.value);
             }}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2"
+            className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:ring-2 focus:ring-blue-500/30"
           >
             {isAdmin && <option value="all">전체 병원</option>}
             {hospitals.map((hospital) => (
@@ -158,15 +152,15 @@ export default function Home() {
           </select>
         </label>
 
-        <label className="rounded-xl border border-gray-200 bg-white p-3 text-sm">
-          <span className="mb-2 block text-gray-600">기간</span>
+        <label className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-3 text-sm">
+          <span className="mb-2 block text-zinc-400">기간</span>
           <select
             value={rangeDays}
             onChange={(e) => {
               setLoading(true);
               setRangeDays(Number(e.target.value) as RangeDays);
             }}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2"
+            className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:ring-2 focus:ring-blue-500/30"
           >
             <option value={7}>최근 7일</option>
             <option value={30}>최근 30일</option>
@@ -176,20 +170,24 @@ export default function Home() {
       </section>
 
       <section className="mb-6 grid grid-cols-1 gap-3 md:grid-cols-2">
-        <article className="rounded-xl border border-gray-200 bg-white p-4">
-          <p className="text-sm text-gray-600">최신 조회수</p>
-          <p className="mt-2 text-3xl font-semibold text-gray-900">{formatNumber(latest)}</p>
+        <article className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-4">
+          <p className="text-sm text-zinc-400">최신 조회수</p>
+          <p className="mt-2 text-3xl font-semibold text-zinc-50">{formatNumber(latest)}</p>
         </article>
-        <article className="rounded-xl border border-gray-200 bg-white p-4">
-          <p className="text-sm text-gray-600">기간 평균 조회수</p>
-          <p className="mt-2 text-3xl font-semibold text-gray-900">{formatNumber(avg)}</p>
+        <article className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-4">
+          <p className="text-sm text-zinc-400">기간 평균 조회수</p>
+          <p className="mt-2 text-3xl font-semibold text-zinc-50">{formatNumber(avg)}</p>
         </article>
       </section>
 
-      {loading && <p className="text-sm text-gray-600">데이터를 불러오는 중...</p>}
-      {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+      {loading && <p className="text-sm text-zinc-400">데이터를 불러오는 중...</p>}
+      {error && (
+        <p className="rounded-lg border border-red-900/50 bg-red-950/40 p-3 text-sm text-red-300">
+          {error}
+        </p>
+      )}
       {!loading && !error && points.length === 0 && (
-        <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+        <p className="rounded-lg border border-amber-900/40 bg-amber-950/30 p-3 text-sm text-amber-200">
           선택한 조건에 해당하는 조회수 데이터가 없습니다.
         </p>
       )}

@@ -181,47 +181,50 @@ export default function KeywordsPage() {
 
   if (!authReady) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-        <p className="text-sm text-gray-600">세션 확인 중…</p>
+      <main className="flex min-h-[40vh] items-center justify-center px-4">
+        <p className="text-sm text-zinc-400">데이터 준비 중…</p>
       </main>
     );
   }
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-6xl bg-gray-50 px-4 py-8">
+    <main className="w-full max-w-none px-4 py-8 sm:px-6 lg:px-8">
       <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">블로그 순위 키워드</h1>
-          <p className="mt-1 text-sm text-gray-600">
+          <h1 className="text-2xl font-bold text-zinc-50">블로그 순위 키워드</h1>
+          <p className="mt-1 text-sm text-zinc-400">
             수집 매크로가 읽는 대상입니다. 저장 후 순위 스크립트는 DB 입력 모드(
-            <code className="rounded bg-gray-200 px-1">RANK_INPUT_SOURCE=db</code>)로 실행하세요.
+            <code className="rounded bg-zinc-800 px-1.5 py-0.5 text-zinc-200">
+              RANK_INPUT_SOURCE=db
+            </code>
+            )로 실행하세요.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Link
             href="/"
-            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700"
+            className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 transition hover:bg-zinc-800"
           >
-            대시보드
+            요약
           </Link>
           <Link
-            href="/logout"
-            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700"
+            href="/blog"
+            className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 transition hover:bg-zinc-800"
           >
-            로그아웃
+            네이버 블로그 실적
           </Link>
         </div>
       </header>
 
-      <section className="mb-6 rounded-xl border border-gray-200 bg-white p-4">
-        <label className="block text-sm text-gray-600">
+      <section className="mb-6 rounded-xl border border-zinc-800 bg-zinc-900/80 p-4">
+        <label className="block text-sm text-zinc-400">
           병원
           <select
             value={hospitalId}
             onChange={(e) => {
               setHospitalId(e.target.value);
             }}
-            className="mt-2 w-full max-w-md rounded-lg border border-gray-300 px-3 py-2"
+            className="mt-2 w-full max-w-md rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:ring-2 focus:ring-blue-500/30"
           >
             {isAdmin && <option value="all">전체 병원 (목록만)</option>}
             {hospitals.map((h) => (
@@ -232,69 +235,72 @@ export default function KeywordsPage() {
           </select>
         </label>
         {hospitalId !== "all" && !blogIdForInsert && (
-          <p className="mt-3 text-sm text-amber-800">
-            이 병원에는 <code className="rounded bg-amber-100 px-1">naver_blog_id</code>가 없어 키워드를
-            추가할 수 없습니다.
+          <p className="mt-3 text-sm text-amber-200">
+            이 병원에는 <code className="rounded bg-amber-950/60 px-1 text-amber-100">naver_blog_id</code>
+            가 없어 키워드를 추가할 수 없습니다.
           </p>
         )}
       </section>
 
-      <section className="mb-6 rounded-xl border border-gray-200 bg-white p-4">
-        <h2 className="mb-3 text-sm font-medium text-gray-900">키워드 추가</h2>
+      <section className="mb-6 rounded-xl border border-zinc-800 bg-zinc-900/80 p-4">
+        <h2 className="mb-3 text-sm font-medium text-zinc-50">키워드 추가</h2>
         <form onSubmit={handleAdd} className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <label className="block flex-1 text-sm text-gray-600">
+          <label className="block flex-1 text-sm text-zinc-400">
             키워드
             <input
               type="text"
               value={newKeyword}
               onChange={(e) => setNewKeyword(e.target.value)}
               placeholder="예: 은평구동물병원"
-              className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2"
+              className="mt-2 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 placeholder:text-zinc-500 outline-none focus:ring-2 focus:ring-blue-500/30"
               disabled={saving || hospitalId === "all" || !blogIdForInsert}
             />
           </label>
-          <label className="block w-full text-sm text-gray-600 sm:w-28">
+          <label className="block w-full text-sm text-zinc-400 sm:w-28">
             우선순위
             <input
               type="number"
               value={newPriority}
               onChange={(e) => setNewPriority(e.target.value)}
-              className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2"
+              className="mt-2 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:ring-2 focus:ring-blue-500/30"
               disabled={saving || hospitalId === "all" || !blogIdForInsert}
             />
           </label>
           <button
             type="submit"
             disabled={saving || hospitalId === "all" || !blogIdForInsert || !newKeyword.trim()}
-            className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500 disabled:opacity-50"
           >
             추가
           </button>
         </form>
         {hospitalId !== "all" && blogIdForInsert && (
-          <p className="mt-2 text-xs text-gray-500">
-            블로그 ID: <span className="font-mono">{blogIdForInsert}</span> (병원 설정값)
+          <p className="mt-2 text-xs text-zinc-500">
+            블로그 ID: <span className="font-mono text-zinc-300">{blogIdForInsert}</span> (병원 설정값)
           </p>
         )}
       </section>
 
       {error && (
-        <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">
+        <p
+          className="mb-4 rounded-lg border border-red-900/50 bg-red-950/40 p-3 text-sm text-red-300"
+          role="alert"
+        >
           {error}
         </p>
       )}
 
-      <section className="rounded-xl border border-gray-200 bg-white p-4">
-        <h2 className="mb-3 text-sm font-medium text-gray-900">등록된 키워드</h2>
-        {loading && <p className="text-sm text-gray-600">불러오는 중…</p>}
+      <section className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-4">
+        <h2 className="mb-3 text-sm font-medium text-zinc-50">등록된 키워드</h2>
+        {loading && <p className="text-sm text-zinc-400">불러오는 중…</p>}
         {!loading && targets.length === 0 && (
-          <p className="text-sm text-gray-600">등록된 키워드가 없습니다.</p>
+          <p className="text-sm text-zinc-400">등록된 키워드가 없습니다.</p>
         )}
         {!loading && targets.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] border-collapse text-left text-sm">
               <thead>
-                <tr className="border-b border-gray-200 text-gray-600">
+                <tr className="border-b border-zinc-700 text-zinc-400">
                   {isAdmin && hospitalId === "all" && <th className="py-2 pr-3">병원</th>}
                   <th className="py-2 pr-3">블로그 ID</th>
                   <th className="py-2 pr-3">키워드</th>
@@ -305,21 +311,21 @@ export default function KeywordsPage() {
               </thead>
               <tbody>
                 {targets.map((row) => (
-                  <tr key={row.id} className="border-b border-gray-100">
+                  <tr key={row.id} className="border-b border-zinc-800/80">
                     {isAdmin && hospitalId === "all" && (
-                      <td className="py-2 pr-3 text-xs text-gray-700">
+                      <td className="py-2 pr-3 text-xs text-zinc-400">
                         {row.hospital_id
                           ? hospitalNameById.get(row.hospital_id) ?? row.hospital_id
                           : "—"}
                       </td>
                     )}
-                    <td className="py-2 pr-3 font-mono text-xs">{row.account_id}</td>
-                    <td className="py-2 pr-3">{row.keyword}</td>
+                    <td className="py-2 pr-3 font-mono text-xs text-zinc-300">{row.account_id}</td>
+                    <td className="py-2 pr-3 text-zinc-200">{row.keyword}</td>
                     <td className="py-2 pr-3">
                       <input
                         type="number"
                         defaultValue={row.priority}
-                        className="w-20 rounded border border-gray-300 px-2 py-1"
+                        className="w-20 rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-zinc-100 outline-none focus:ring-2 focus:ring-blue-500/30"
                         onBlur={(e) => handlePriorityBlur(row, e.target.value)}
                       />
                     </td>
@@ -335,7 +341,7 @@ export default function KeywordsPage() {
                       <button
                         type="button"
                         onClick={() => handleDelete(row)}
-                        className="text-sm text-red-600 hover:underline"
+                        className="text-sm text-red-400 hover:text-red-300 hover:underline"
                       >
                         삭제
                       </button>
