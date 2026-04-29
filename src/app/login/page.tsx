@@ -41,7 +41,7 @@ export default function LoginPage() {
     <main className="mx-auto flex min-h-screen w-full max-w-md items-center px-4 bg-zinc-950">
       <form
         onSubmit={onSubmit}
-        className="w-full rounded-xl border border-zinc-800 bg-zinc-900/90 p-6 shadow-xl shadow-black/40"
+        className="w-full border border-zinc-800 bg-zinc-900/90 p-6 shadow-xl shadow-black/40"
       >
         <h1 className="text-xl font-semibold text-zinc-50">로그인</h1>
         <p className="mt-1 text-sm text-zinc-400">병원별 대시보드 데이터를 확인하려면 로그인하세요.</p>
@@ -54,7 +54,7 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:ring-2 focus:ring-blue-500/40"
+              className="mt-1 w-full border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:ring-2 focus:ring-blue-500/40"
             />
           </label>
           <label className="block text-sm text-zinc-300">
@@ -64,13 +64,13 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:ring-2 focus:ring-blue-500/40"
+              className="mt-1 w-full border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:ring-2 focus:ring-blue-500/40"
             />
           </label>
         </div>
 
         {error && (
-          <p className="mt-3 rounded-lg border border-red-900/50 bg-red-950/50 p-2 text-sm text-red-300">
+          <p className="mt-3 border border-red-900/50 bg-red-950/50 p-2 text-sm text-red-300">
             {error}
           </p>
         )}
@@ -78,7 +78,7 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={loading}
-          className="mt-4 w-full rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-500 disabled:opacity-60"
+          className="mt-4 w-full bg-blue-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-500 disabled:opacity-60"
         >
           {loading ? "로그인 중..." : "로그인"}
         </button>

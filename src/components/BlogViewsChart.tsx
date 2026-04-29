@@ -18,12 +18,12 @@ type Props = {
 const tooltipStyle = {
   backgroundColor: "#18181b",
   border: "1px solid #27272a",
-  borderRadius: "8px",
+  borderRadius: "0",
 };
 
 export default function BlogViewsChart({ data }: Props) {
   return (
-    <div className="flex h-96 w-full min-w-0 flex-col rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
+    <div className="flex h-[22rem] w-full min-w-0 flex-col border border-zinc-800 bg-zinc-900/60 p-3 sm:h-96">
       <div className="min-h-0 min-w-0 flex-1">
       <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
         <LineChart data={data}>

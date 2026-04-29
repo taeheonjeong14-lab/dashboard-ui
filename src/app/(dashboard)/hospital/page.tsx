@@ -1,11 +1,164 @@
-export default function HospitalPerformancePage() {
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import ManagementMetricSection from "@/components/management/ManagementMetricSection";
+import { getCurrentUser } from "@/lib/auth";
+import {
+  fetchHospitalManagementKpis,
+  fetchHospitalScope,
+  type HospitalManagementDayRow,
+} from "@/lib/queries";
+
+export default function HospitalManagementPage() {
+  const router = useRouter();
+  const [ready, setReady] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [rows, setRows] = useState<HospitalManagementDayRow[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    const load = async (kind: "initial" | "refresh") => {
+      try {
+        if (kind === "refresh") setRefreshing(true);
+        const user = await getCurrentUser();
+        if (!active) return;
+        if (!user) {
+          router.replace("/login");
+          return;
+        }
+
+        const scope = await fetchHospitalScope(user);
+        if (!active) return;
+        const hospitalId = scope.assignedHospitalId;
+        if (!hospitalId) {
+          setError("users.hospital_id 배정이 없어 경영 통계를 불러올 수 없습니다.");
+          setRows([]);
+          setReady(true);
+          return;
+        }
+
+        const data = await fetchHospitalManagementKpis(hospitalId);
+        if (!active) return;
+        setRows(data);
+        setError(null);
+      } catch (e) {
+        if (!active) return;
+        setError(e instanceof Error ? e.message : "데이터를 불러오지 못했습니다.");
+        setRows([]);
+      } finally {
+        if (!active) return;
+        if (kind === "initial") {
+          setLoading(false);
+          setReady(true);
+        } else {
+          setRefreshing(false);
+        }
+      }
+    };
+
+    void load("initial");
+
+    const refresh = () => {
+      if (!active) return;
+      void load("refresh");
+    };
+    const interval = window.setInterval(refresh, 15000);
+    const onFocus = () => refresh();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [router]);
+
+  if (!ready) {
+    return (
+      <main className="flex min-h-[40vh] items-center justify-center px-4">
+        <p className="text-sm text-zinc-400">데이터 준비 중…</p>
+      </main>
+    );
+  }
+
   return (
-    <main className="min-h-[50vh] w-full px-4 py-8 sm:px-6 lg:px-8">
-      <h1 className="text-2xl font-bold text-zinc-50">병원 실적</h1>
-      <p className="mt-1 text-sm text-zinc-400">화면 내용은 추후 확정 후 연결 예정입니다.</p>
-      <div className="mt-10 rounded-xl border border-dashed border-zinc-700 bg-zinc-900/40 p-12 text-center text-sm text-zinc-500">
-        준비 중
+    <main className="w-full max-w-none px-4 py-4 sm:px-5 sm:py-5 lg:px-6">
+      <header className="mb-3">
+        <h1 className="text-2xl font-bold text-zinc-50">경영 통계</h1>
+        <p className="mt-1 text-sm text-zinc-400">
+          매출·진료건수·신규 환자 유입을 기간·단위별로 보고, 전년 동월·요일별 패턴을 함께 확인합니다.
+        </p>
+        <div className="mt-2 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={async () => {
+              setRefreshing(true);
+              try {
+                const user = await getCurrentUser();
+                if (!user) return;
+                const scope = await fetchHospitalScope(user);
+                const hospitalId = scope.assignedHospitalId;
+                if (!hospitalId) return;
+                const data = await fetchHospitalManagementKpis(hospitalId);
+                setRows(data);
+                setError(null);
+              } catch (e) {
+                setError(e instanceof Error ? e.message : "데이터를 불러오지 못했습니다.");
+              } finally {
+                setRefreshing(false);
+              }
+            }}
+            className="border border-zinc-700 bg-zinc-900 px-2.5 py-1 text-xs text-zinc-300 hover:bg-zinc-800"
+          >
+            지금 새로고침
+          </button>
+          {refreshing ? <span className="text-xs text-zinc-500">갱신 중…</span> : null}
+
+        </div>
+      </header>
+
+
+      {loading && <p className="mb-2 text-sm text-zinc-500">불러오는 중…</p>}
+
+      <div className="flex flex-col divide-y divide-zinc-800 border border-zinc-800 bg-zinc-800">
+        <ManagementMetricSection
+          title="매출"
+          description="기간과 일·월·연 단위를 바꿔 매출 추이를 봅니다."
+          rows={rows}
+          metric="sales"
+          valueFormat="currency"
+        />
+        <ManagementMetricSection
+          title="진료건수"
+          description="동일 구조로 진료 건수를 봅니다."
+          rows={rows}
+          metric="visits"
+          valueFormat="integer"
+          valueSuffix="건"
+        />
+        <ManagementMetricSection
+          title="신규 환자 유입"
+          description="동일 구조로 신규 환자 수를 봅니다."
+          rows={rows}
+          metric="newPatients"
+          valueFormat="integer"
+          valueSuffix="명"
+        />
       </div>
+
+      {error && (
+        <p className="mt-3 border border-red-900/50 bg-red-950/40 p-3 text-sm text-red-300">
+          {error}
+        </p>
+      )}
     </main>
   );
 }

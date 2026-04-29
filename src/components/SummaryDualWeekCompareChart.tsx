@@ -19,7 +19,7 @@ const SERIES = [
 const tooltipStyle = {
   backgroundColor: "#18181b",
   border: "1px solid #27272a",
-  borderRadius: "8px",
+  borderRadius: "0",
 };
 
 export type SummaryDualWeekCompareChartProps = {
@@ -66,12 +66,10 @@ export default function SummaryDualWeekCompareChart({
     previous: p[i],
   }));
 
-  const awaitingData = !currentWeek?.length && !previousWeek?.length;
-
   return (
-    <figure className="w-full min-w-0">
+    <div className="w-full min-w-0">
       <div
-        className="flex h-[280px] w-full flex-col rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 sm:h-[320px]"
+        className="flex h-[240px] w-full flex-col border border-zinc-800 bg-zinc-900/60 p-3 sm:h-[280px]"
         role="img"
         aria-label={ariaLabel}
       >
@@ -139,11 +137,6 @@ export default function SummaryDualWeekCompareChart({
         </ResponsiveContainer>
         </div>
       </div>
-      <figcaption className="mt-2 text-xs text-zinc-500">
-        가로축 1~7은 각 7일 안에서 가장 이전 날부터 가장 최근 날까지 순서입니다. 같은 번호끼리 최근 7일과 그 이전 7일을
-        비교합니다.
-        {awaitingData ? " · 데이터 연동 후 값이 표시됩니다. (지금은 0)" : ""}
-      </figcaption>
-    </figure>
+    </div>
   );
 }
