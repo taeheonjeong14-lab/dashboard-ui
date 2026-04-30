@@ -1,8 +1,11 @@
-"use client";
+ "use client";
 
-import { useState } from "react";
-import BlogLinkPreviewModal from "@/components/blog/BlogLinkPreviewModal";
-import type { BlogRankSummaryRow } from "@/lib/queries";
+import { useEffect, useMemo, useState } from "react";
+import {
+  fetchBlogKeywordRankTrend,
+  type BlogRankSummaryRow,
+  type BlogRankTrendPoint,
+} from "@/lib/queries";
 
 function formatRank(value: number): string {
   return `${new Intl.NumberFormat("ko-KR").format(value)}위`;
@@ -21,7 +24,11 @@ type RankPart = {
     | "blog_rank_pet_popular_url"
     | "blog_rank_general_url"
     | "blog_rank_integrated_url";
-  label: string;
+  trendKey:
+    | "blog_rank_tab_trend"
+    | "blog_rank_pet_popular_trend"
+    | "blog_rank_general_trend"
+    | "blog_rank_integrated_trend";
 };
 
 const PARTS: RankPart[] = [
@@ -30,33 +37,34 @@ const PARTS: RankPart[] = [
     title: "블로그탭",
     rankKey: "blog_rank_tab",
     urlKey: "blog_rank_tab_url",
-    label: "블로그탭 순위",
+    trendKey: "blog_rank_tab_trend",
   },
   {
     id: "pet_popular",
     title: "반려동물 인기글",
     rankKey: "blog_rank_pet_popular",
     urlKey: "blog_rank_pet_popular_url",
-    label: "반려동물 인기글 순위",
+    trendKey: "blog_rank_pet_popular_trend",
   },
   {
     id: "general",
     title: "일반 검색",
     rankKey: "blog_rank_general",
     urlKey: "blog_rank_general_url",
-    label: "일반검색 순위",
+    trendKey: "blog_rank_general_trend",
   },
   {
     id: "integrated",
     title: "네이버 통합검색",
     rankKey: "blog_rank_integrated",
     urlKey: "blog_rank_integrated_url",
-    label: "네이버 통합검색 순위",
+    trendKey: "blog_rank_integrated_trend",
   },
 ];
 
 export type BlogRanksSectionProps = {
   rows: BlogRankSummaryRow[];
+  hospitalId?: string | null;
   loading?: boolean;
   /** 섹션 제목 */
   title?: string;
@@ -70,6 +78,18 @@ type RankEntry = {
   keyword: string;
   rank: number;
   url: string | null;
+};
+
+type PreviewTitleData = {
+  title: string | null;
+  finalUrl: string;
+};
+
+type HoveredRank = {
+  keyword: string;
+  partId: RankPart["id"];
+  x: number;
+  y: number;
 };
 
 function pickPartEntries(rows: BlogRankSummaryRow[], part: RankPart): RankEntry[] {
@@ -87,36 +107,236 @@ function pickPartEntries(rows: BlogRankSummaryRow[], part: RankPart): RankEntry[
     .sort((a, b) => a.rank - b.rank || a.keyword.localeCompare(b.keyword, "ko"));
 }
 
+function truncateText(value: string, maxLength: number): string {
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, maxLength)}...`;
+}
+
+function TrendIcon({ trend }: { trend: -1 | 0 | 1 }) {
+  if (trend > 0) {
+    return (
+      <span className="text-xs font-semibold text-emerald-300" title="상승">
+        ↑
+      </span>
+    );
+  }
+  if (trend < 0) {
+    return (
+      <span className="text-xs font-semibold text-red-300" title="하락">
+        ↓
+      </span>
+    );
+  }
+  return (
+    <span className="text-xs font-semibold text-zinc-400" title="변동 없음">
+      —
+    </span>
+  );
+}
+
 export default function BlogRanksSection({
   rows,
+  hospitalId = null,
   loading = false,
   title = "주요 키워드 · 블로그 노출 순위",
   description = "가장 최신 수집 기준, 주요 키워드별 네이버 블로그 노출 순위입니다.",
   headingId = "blog-ranks-section",
 }: BlogRanksSectionProps) {
-  const [preview, setPreview] = useState<{ url: string; label: string } | null>(null);
+  const [previewTitles, setPreviewTitles] = useState<Record<string, PreviewTitleData>>({});
+  const [trendCache, setTrendCache] = useState<Record<string, BlogRankTrendPoint[]>>({});
+  const [trendLoading, setTrendLoading] = useState<Record<string, boolean>>({});
+  const [hoveredRank, setHoveredRank] = useState<HoveredRank | null>(null);
 
-  const renderRankCell = (entry: RankEntry, label: string) => {
+  const trendByKeyword = useMemo(() => {
+    const map = new Map<string, BlogRankSummaryRow>();
+    for (const row of rows) map.set(row.keyword, row);
+    return map;
+  }, [rows]);
+
+  const urlsToFetch = useMemo(() => {
+    const set = new Set<string>();
+    for (const row of rows) {
+      if (row.blog_rank_tab != null && row.blog_rank_tab_url) set.add(row.blog_rank_tab_url);
+      if (row.blog_rank_pet_popular != null && row.blog_rank_pet_popular_url) {
+        set.add(row.blog_rank_pet_popular_url);
+      }
+      if (row.blog_rank_general != null && row.blog_rank_general_url) set.add(row.blog_rank_general_url);
+      if (row.blog_rank_integrated != null && row.blog_rank_integrated_url) {
+        set.add(row.blog_rank_integrated_url);
+      }
+    }
+    return Array.from(set.values());
+  }, [rows]);
+
+  useEffect(() => {
+    const pending = urlsToFetch.filter((url) => !previewTitles[url]);
+    if (pending.length === 0) return;
+
+    let cancelled = false;
+    Promise.all(
+      pending.map(async (url) => {
+        try {
+          const res = await fetch(`/api/blog/preview?url=${encodeURIComponent(url)}`);
+          const data = (await res.json()) as
+            | { ok: true; title: string | null; finalUrl: string }
+            | { ok: false };
+          if (!data || !("ok" in data) || !data.ok) return null;
+          return {
+            url,
+            title: data.title,
+            finalUrl: data.finalUrl,
+          };
+        } catch {
+          return null;
+        }
+      })
+    ).then((results) => {
+      if (cancelled) return;
+      const next: Record<string, PreviewTitleData> = {};
+      for (const item of results) {
+        if (!item) continue;
+        next[item.url] = { title: item.title, finalUrl: item.finalUrl };
+      }
+      if (Object.keys(next).length === 0) return;
+      setPreviewTitles((prev) => ({ ...prev, ...next }));
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [urlsToFetch, previewTitles]);
+
+  const ensureTrendLoaded = (keyword: string) => {
+    if (!hospitalId || trendCache[keyword] || trendLoading[keyword]) return;
+    setTrendLoading((prev) => ({ ...prev, [keyword]: true }));
+    fetchBlogKeywordRankTrend(hospitalId, keyword)
+      .then((points) => {
+        setTrendCache((prev) => ({ ...prev, [keyword]: points }));
+      })
+      .catch(() => {
+        setTrendCache((prev) => ({ ...prev, [keyword]: [] }));
+      })
+      .finally(() => {
+        setTrendLoading((prev) => ({ ...prev, [keyword]: false }));
+      });
+  };
+
+  const renderRankCell = (
+    entry: RankEntry,
+    trend: -1 | 0 | 1,
+    keyword: string,
+    part: RankPart
+  ) => {
     const text = formatRank(entry.rank);
-    if (!entry.url) return <span className="text-zinc-200">{text}</span>;
-
     return (
-      <button
-        type="button"
-        className="inline-flex items-center gap-1 text-zinc-200 hover:text-zinc-50 hover:underline"
-        onClick={() => setPreview({ url: entry.url as string, label })}
+      <span
+        className="inline-flex items-center gap-1.5 text-zinc-200"
+        onMouseEnter={(event) => {
+          ensureTrendLoaded(keyword);
+          setHoveredRank({
+            keyword,
+            partId: part.id,
+            x: event.clientX,
+            y: event.clientY,
+          });
+        }}
+        onMouseMove={(event) => {
+          setHoveredRank((prev) =>
+            prev && prev.keyword === keyword && prev.partId === part.id
+              ? { ...prev, x: event.clientX, y: event.clientY }
+              : prev
+          );
+        }}
+        onMouseLeave={() => setHoveredRank(null)}
       >
         <span>{text}</span>
-        <span aria-hidden="true" className="text-[10px]">
-          ↗
-        </span>
-      </button>
+        <TrendIcon trend={trend} />
+      </span>
+    );
+  };
+
+  const renderContentCell = (entry: RankEntry) => {
+    if (!entry.url) return <span className="text-zinc-500">-</span>;
+    const preview = previewTitles[entry.url];
+    if (!preview) return <span className="text-zinc-500">불러오는 중…</span>;
+
+    const title = preview.title?.trim();
+    if (!title) return <span className="text-zinc-500">-</span>;
+
+    return (
+      <a
+        href={preview.finalUrl || entry.url}
+        target="_blank"
+        rel="noreferrer"
+        className="underline underline-offset-2 text-sky-300 decoration-sky-500/60 hover:text-sky-200 hover:decoration-sky-300 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky-400/60"
+        title={title}
+      >
+        {truncateText(title, 22)}
+      </a>
+    );
+  };
+
+  const renderTrendPopover = () => {
+    if (!hoveredRank) return null;
+    const part = PARTS.find((item) => item.id === hoveredRank.partId);
+    if (!part) return null;
+
+    const keywordPoints = trendCache[hoveredRank.keyword] ?? [];
+    const loadingTrend = !!trendLoading[hoveredRank.keyword];
+    const series = keywordPoints
+      .map((point) => ({ dateKey: point.dateKey, value: point[part.rankKey] }))
+      .filter((point): point is { dateKey: string; value: number } => point.value != null);
+
+    const width = 220;
+    const height = 92;
+    const pad = 8;
+    const min = series.length > 0 ? Math.min(...series.map((item) => item.value)) : 1;
+    const max = series.length > 0 ? Math.max(...series.map((item) => item.value)) : 1;
+    const range = Math.max(1, max - min);
+    const toX = (index: number) =>
+      pad +
+      (series.length <= 1
+        ? (width - pad * 2) / 2
+        : (index * (width - pad * 2)) / (series.length - 1));
+    const toY = (value: number) => pad + ((value - min) / range) * (height - pad * 2);
+    const d = series
+      .map((item, index) => `${index === 0 ? "M" : "L"} ${toX(index)} ${toY(item.value)}`)
+      .join(" ");
+
+    const viewportWidth = typeof window !== "undefined" ? window.innerWidth : 1200;
+    const viewportHeight = typeof window !== "undefined" ? window.innerHeight : 800;
+    const left = Math.min(hoveredRank.x + 14, viewportWidth - 260);
+    const top = Math.min(hoveredRank.y + 14, viewportHeight - 220);
+
+    return (
+      <div
+        className="pointer-events-none fixed z-[60] w-[250px] border border-zinc-700 bg-zinc-950/95 p-2.5 shadow-xl"
+        style={{ left, top }}
+      >
+        <p className="text-xs font-medium text-zinc-200">{hoveredRank.keyword}</p>
+        <p className="mb-2 text-[11px] text-zinc-500">{part.title} · 최근 6개월</p>
+        {loadingTrend && <p className="text-xs text-zinc-500">불러오는 중…</p>}
+        {!loadingTrend && series.length < 2 && (
+          <p className="text-xs italic text-zinc-500">추세를 그릴 데이터가 부족합니다.</p>
+        )}
+        {!loadingTrend && series.length >= 2 && (
+          <>
+            <svg viewBox={`0 0 ${width} ${height}`} className="h-[92px] w-full">
+              <path d={d} fill="none" stroke="#60a5fa" strokeWidth="2" />
+            </svg>
+            <div className="mt-1 flex justify-between text-[10px] text-zinc-500">
+              <span>{series[0].dateKey}</span>
+              <span>{series.at(-1)?.dateKey}</span>
+            </div>
+          </>
+        )}
+      </div>
     );
   };
 
   return (
     <>
-      <section aria-labelledby={headingId} className="bg-zinc-950 p-4 sm:p-5">
+      <section aria-labelledby={headingId} className="bg-zinc-800/50 p-4 sm:p-5">
         <h2 id={headingId} className="mb-2 text-base font-semibold text-zinc-100 sm:text-lg">
           {title}
         </h2>
@@ -128,7 +348,7 @@ export default function BlogRanksSection({
           </p>
         )}
         {!loading && rows.length > 0 && (
-          <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]">
+          <div className="flex flex-col gap-4">
             {PARTS.map((part) => {
               const entries = pickPartEntries(rows, part);
               return (
@@ -142,7 +362,8 @@ export default function BlogRanksSection({
                         <thead>
                           <tr className="border-b border-zinc-800 text-zinc-400">
                             <th className="py-1.5 pr-2 font-medium">검색어</th>
-                            <th className="py-1.5 pl-2 font-medium">순위</th>
+                            <th className="py-1.5 px-2 font-medium">순위</th>
+                            <th className="py-1.5 pl-2 font-medium">컨텐츠</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -152,7 +373,15 @@ export default function BlogRanksSection({
                               className="border-b border-zinc-800/70 text-zinc-200"
                             >
                               <td className="py-1.5 pr-2">{entry.keyword}</td>
-                              <td className="py-1.5 pl-2">{renderRankCell(entry, part.label)}</td>
+                              <td className="py-1.5 px-2">
+                                {renderRankCell(
+                                  entry,
+                                  trendByKeyword.get(entry.keyword)?.[part.trendKey] ?? 0,
+                                  entry.keyword,
+                                  part
+                                )}
+                              </td>
+                              <td className="py-1.5 pl-2">{renderContentCell(entry)}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -165,12 +394,7 @@ export default function BlogRanksSection({
           </div>
         )}
       </section>
-      <BlogLinkPreviewModal
-        open={preview !== null}
-        url={preview?.url ?? null}
-        label={preview?.label ?? ""}
-        onClose={() => setPreview(null)}
-      />
+      {renderTrendPopover()}
     </>
   );
 }

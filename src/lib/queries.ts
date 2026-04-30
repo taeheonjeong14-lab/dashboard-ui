@@ -52,6 +52,10 @@ export type BlogRankSummaryRow = {
   blog_rank_general: number | null;
   blog_rank_integrated: number | null;
   blog_rank_pet_popular: number | null;
+  blog_rank_tab_trend: -1 | 0 | 1;
+  blog_rank_general_trend: -1 | 0 | 1;
+  blog_rank_integrated_trend: -1 | 0 | 1;
+  blog_rank_pet_popular_trend: -1 | 0 | 1;
   blog_rank_tab_url: string | null;
   blog_rank_general_url: string | null;
   blog_rank_integrated_url: string | null;
@@ -64,6 +68,14 @@ export type BlogPeriodDayRow = {
   periodType: "day" | "month" | "year";
   views: number | null;
   uniqueVisitors: number | null;
+};
+
+export type BlogRankTrendPoint = {
+  dateKey: string;
+  blog_rank_tab: number | null;
+  blog_rank_general: number | null;
+  blog_rank_integrated: number | null;
+  blog_rank_pet_popular: number | null;
 };
 
 export type PlaceRankSummaryRow = {
@@ -462,21 +474,168 @@ export async function fetchSummaryBlogRanks(hospitalId: string): Promise<BlogRan
     .select("*")
     .eq("hospital_id", hospitalId);
   if (error) throw error;
+  const rows = (data ?? []) as Record<string, unknown>[];
+  const stamped = rows
+    .map((row) => {
+      const date = parseDateValue(row);
+      if (!date) return null;
+      return { row, dateKey: toSeoulDateKey(date) };
+    })
+    .filter((item): item is { row: Record<string, unknown>; dateKey: string } => item !== null);
 
-  return latestSnapshotRows((data ?? []) as Record<string, unknown>[])
-    .map((row) => ({
-      keyword: asStringOrNull(row.keyword) ?? "-",
-      blog_rank_tab: asNumberOrNull(row.blog_rank_tab),
-      blog_rank_general: asNumberOrNull(row.blog_rank_general),
-      blog_rank_integrated: asNumberOrNull(row.blog_rank_integrated),
-      blog_rank_pet_popular: asNumberOrNull(row.blog_rank_pet_popular),
-      blog_rank_tab_url: asStringOrNull(row.blog_rank_tab_url),
-      blog_rank_general_url: asStringOrNull(row.blog_rank_general_url),
-      blog_rank_integrated_url: asStringOrNull(row.blog_rank_integrated_url),
-      blog_rank_pet_popular_url:
-        asStringOrNull(row.blog_rank_popular_url) ?? asStringOrNull(row.blog_rank_pet_popular_url),
-    }))
+  const toTrend = (current: number | null, previous: number | null): -1 | 0 | 1 => {
+    if (current == null || previous == null) return 0;
+    if (current < previous) return 1;
+    if (current > previous) return -1;
+    return 0;
+  };
+
+  type RankKeywordSnapshot = {
+    keyword: string;
+    blog_rank_tab: number | null;
+    blog_rank_general: number | null;
+    blog_rank_integrated: number | null;
+    blog_rank_pet_popular: number | null;
+    blog_rank_tab_url: string | null;
+    blog_rank_general_url: string | null;
+    blog_rank_integrated_url: string | null;
+    blog_rank_pet_popular_url: string | null;
+  };
+
+  const mergeRowsByKeyword = (input: Record<string, unknown>[]) => {
+    const byKeyword = new Map<string, RankKeywordSnapshot>();
+
+    for (const row of input) {
+      const keyword = asStringOrNull(row.keyword) ?? "-";
+      const prev = byKeyword.get(keyword) ?? {
+        keyword,
+        blog_rank_tab: null,
+        blog_rank_general: null,
+        blog_rank_integrated: null,
+        blog_rank_pet_popular: null,
+        blog_rank_tab_url: null,
+        blog_rank_general_url: null,
+        blog_rank_integrated_url: null,
+        blog_rank_pet_popular_url: null,
+      };
+      byKeyword.set(keyword, {
+        keyword,
+        blog_rank_tab: asNumberOrNull(row.blog_rank_tab) ?? prev.blog_rank_tab,
+        blog_rank_general: asNumberOrNull(row.blog_rank_general) ?? prev.blog_rank_general,
+        blog_rank_integrated: asNumberOrNull(row.blog_rank_integrated) ?? prev.blog_rank_integrated,
+        blog_rank_pet_popular: asNumberOrNull(row.blog_rank_pet_popular) ?? prev.blog_rank_pet_popular,
+        blog_rank_tab_url: asStringOrNull(row.blog_rank_tab_url) ?? prev.blog_rank_tab_url,
+        blog_rank_general_url: asStringOrNull(row.blog_rank_general_url) ?? prev.blog_rank_general_url,
+        blog_rank_integrated_url:
+          asStringOrNull(row.blog_rank_integrated_url) ?? prev.blog_rank_integrated_url,
+        blog_rank_pet_popular_url:
+          asStringOrNull(row.blog_rank_popular_url) ??
+          asStringOrNull(row.blog_rank_pet_popular_url) ??
+          prev.blog_rank_pet_popular_url,
+      });
+    }
+    return byKeyword;
+  };
+
+  if (stamped.length === 0) {
+    return latestSnapshotRows(rows)
+      .map((row) => ({
+        keyword: asStringOrNull(row.keyword) ?? "-",
+        blog_rank_tab: asNumberOrNull(row.blog_rank_tab),
+        blog_rank_general: asNumberOrNull(row.blog_rank_general),
+        blog_rank_integrated: asNumberOrNull(row.blog_rank_integrated),
+        blog_rank_pet_popular: asNumberOrNull(row.blog_rank_pet_popular),
+        blog_rank_tab_trend: 0 as const,
+        blog_rank_general_trend: 0 as const,
+        blog_rank_integrated_trend: 0 as const,
+        blog_rank_pet_popular_trend: 0 as const,
+        blog_rank_tab_url: asStringOrNull(row.blog_rank_tab_url),
+        blog_rank_general_url: asStringOrNull(row.blog_rank_general_url),
+        blog_rank_integrated_url: asStringOrNull(row.blog_rank_integrated_url),
+        blog_rank_pet_popular_url:
+          asStringOrNull(row.blog_rank_popular_url) ?? asStringOrNull(row.blog_rank_pet_popular_url),
+      }))
+      .sort((a, b) => a.keyword.localeCompare(b.keyword, "ko"));
+  }
+
+  const dateKeys = Array.from(new Set(stamped.map((item) => item.dateKey))).sort();
+  const latestDateKey = dateKeys.at(-1) as string;
+  const baselineTarget = addCalendarDaysUtc(latestDateKey, -30);
+  const baselineDateKey = dateKeys.filter((key) => key <= baselineTarget).at(-1) ?? null;
+
+  const latestRows = stamped.filter((item) => item.dateKey === latestDateKey).map((item) => item.row);
+  const latestByKeyword = mergeRowsByKeyword(latestRows);
+  const baselineByKeyword = baselineDateKey
+    ? mergeRowsByKeyword(
+        stamped.filter((item) => item.dateKey === baselineDateKey).map((item) => item.row)
+      )
+    : new Map<string, RankKeywordSnapshot>();
+
+  return Array.from(latestByKeyword.values())
+    .map((current) => {
+      const previous = baselineByKeyword.get(current.keyword) ?? null;
+      return {
+        ...current,
+        blog_rank_tab_trend: toTrend(current.blog_rank_tab, previous?.blog_rank_tab ?? null),
+        blog_rank_general_trend: toTrend(current.blog_rank_general, previous?.blog_rank_general ?? null),
+        blog_rank_integrated_trend: toTrend(
+          current.blog_rank_integrated,
+          previous?.blog_rank_integrated ?? null
+        ),
+        blog_rank_pet_popular_trend: toTrend(
+          current.blog_rank_pet_popular,
+          previous?.blog_rank_pet_popular ?? null
+        ),
+      } as BlogRankSummaryRow;
+    })
     .sort((a, b) => a.keyword.localeCompare(b.keyword, "ko"));
+}
+
+export async function fetchBlogKeywordRankTrend(
+  hospitalId: string,
+  keyword: string
+): Promise<BlogRankTrendPoint[]> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .schema("analytics")
+    .from("analytics_blog_keyword_ranks_daily_view")
+    .select("*")
+    .eq("hospital_id", hospitalId)
+    .eq("keyword", keyword);
+  if (error) throw error;
+
+  const stamped = ((data ?? []) as Record<string, unknown>[])
+    .map((row) => {
+      const date = parseDateValue(row);
+      if (!date) return null;
+      return { row, dateKey: toSeoulDateKey(date) };
+    })
+    .filter((item): item is { row: Record<string, unknown>; dateKey: string } => item !== null);
+  if (stamped.length === 0) return [];
+
+  const latestDateKey = stamped.map((item) => item.dateKey).sort().at(-1) as string;
+  const startDateKey = addCalendarDaysUtc(latestDateKey, -183);
+
+  const byDate = new Map<string, BlogRankTrendPoint>();
+  for (const item of stamped) {
+    if (item.dateKey < startDateKey) continue;
+    const prev = byDate.get(item.dateKey) ?? {
+      dateKey: item.dateKey,
+      blog_rank_tab: null,
+      blog_rank_general: null,
+      blog_rank_integrated: null,
+      blog_rank_pet_popular: null,
+    };
+    byDate.set(item.dateKey, {
+      dateKey: item.dateKey,
+      blog_rank_tab: asNumberOrNull(item.row.blog_rank_tab) ?? prev.blog_rank_tab,
+      blog_rank_general: asNumberOrNull(item.row.blog_rank_general) ?? prev.blog_rank_general,
+      blog_rank_integrated: asNumberOrNull(item.row.blog_rank_integrated) ?? prev.blog_rank_integrated,
+      blog_rank_pet_popular: asNumberOrNull(item.row.blog_rank_pet_popular) ?? prev.blog_rank_pet_popular,
+    });
+  }
+
+  return Array.from(byDate.values()).sort((a, b) => a.dateKey.localeCompare(b.dateKey));
 }
 
 export async function fetchSummaryPlaceRanks(hospitalId: string): Promise<PlaceRankSummaryRow[]> {

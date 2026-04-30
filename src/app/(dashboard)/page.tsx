@@ -34,6 +34,7 @@ export default function SummaryPage() {
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hospitalId, setHospitalId] = useState<string | null>(null);
   const [kpis, setKpis] = useState<SummaryKpis>(EMPTY_KPIS);
   const [blogRanks, setBlogRanks] = useState<BlogRankSummaryRow[]>([]);
   const [placeRanks, setPlaceRanks] = useState<PlaceRankSummaryRow[]>([]);
@@ -54,9 +55,11 @@ export default function SummaryPage() {
         const hospitalId = scope.assignedHospitalId;
         if (!hospitalId) {
           setError("users.hospital_id 배정이 없어 요약 데이터를 불러올 수 없습니다.");
+          setHospitalId(null);
           setReady(true);
           return;
         }
+        setHospitalId(hospitalId);
 
         const [kpiRows, blogRows, placeRows] = await Promise.all([
           fetchSummaryKpis(hospitalId),
@@ -141,6 +144,7 @@ export default function SummaryPage() {
 
         <BlogRanksSection
           rows={blogRanks}
+          hospitalId={hospitalId}
           loading={loading}
           headingId="summary-blog-rank"
         />

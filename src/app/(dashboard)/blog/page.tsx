@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import BlogMetricSection from "@/components/blog/BlogMetricSection";
 import BlogRanksSection from "@/components/blog/BlogRanksSection";
 import { getCurrentUser } from "@/lib/auth";
@@ -19,6 +18,7 @@ export default function BlogPerformancePage() {
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hospitalId, setHospitalId] = useState<string | null>(null);
   const [rows, setRows] = useState<BlogPeriodDayRow[]>([]);
   const [blogRanks, setBlogRanks] = useState<BlogRankSummaryRow[]>([]);
 
@@ -38,9 +38,11 @@ export default function BlogPerformancePage() {
         const hospitalId = scope.assignedHospitalId;
         if (!hospitalId) {
           setError("users.hospital_id 배정이 없어 블로그 통계를 불러올 수 없습니다.");
+          setHospitalId(null);
           setReady(true);
           return;
         }
+        setHospitalId(hospitalId);
 
         const [kpiRows, rankRows] = await Promise.all([
           fetchBlogPeriodKpis(hospitalId),
@@ -82,14 +84,6 @@ export default function BlogPerformancePage() {
             블로그 조회수·순방문자수 추이와 주요 키워드 노출 순위를 확인합니다.
           </p>
         </div>
-        <div className="flex gap-2">
-          <Link
-            href="/keywords"
-            className="bg-zinc-800 px-3 py-2 text-sm text-zinc-200 transition hover:bg-zinc-700"
-          >
-            순위 키워드 관리
-          </Link>
-        </div>
       </header>
 
       {loading && <p className="mt-3 text-sm text-zinc-500">불러오는 중…</p>}
@@ -97,9 +91,14 @@ export default function BlogPerformancePage() {
       <div className="border-t border-zinc-800">
         <div className="grid grid-cols-1 lg:grid-cols-3">
           <div className="lg:col-span-1">
-            <BlogRanksSection rows={blogRanks} loading={loading} headingId="blog-ranks" />
+            <BlogRanksSection
+              rows={blogRanks}
+              hospitalId={hospitalId}
+              loading={loading}
+              headingId="blog-ranks"
+            />
           </div>
-          <div className="flex flex-col divide-y divide-zinc-800 lg:col-span-2">
+          <div className="flex flex-col divide-y divide-zinc-800 lg:col-span-2 lg:border-l lg:border-zinc-800">
             <BlogMetricSection
               title="블로그 조회수"
               description="기간 내 일/월/연 단위 블로그 조회수 추이입니다."
