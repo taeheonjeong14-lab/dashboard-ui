@@ -5,13 +5,11 @@ import {
   Legend,
   Line,
   LineChart,
-  type TooltipProps,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
-import type { ValueType, NameType } from "recharts/types/component/DefaultTooltipContent";
 
 const SERIES = [
   { key: "current", name: "최근 7일", color: "#60a5fa" },
@@ -22,6 +20,15 @@ const tooltipStyle = {
   backgroundColor: "#18181b",
   border: "1px solid #27272a",
   borderRadius: "0",
+};
+
+type ChartTooltipProps = {
+  active?: boolean;
+  payload?: ReadonlyArray<{
+    payload?: { currentDate?: string; previousDate?: string };
+    dataKey?: string | number | ((obj: unknown) => unknown);
+    value?: number | string | readonly (number | string)[] | null;
+  }>;
 };
 
 export type SummaryDualWeekCompareChartProps = {
@@ -86,15 +93,15 @@ export default function SummaryDualWeekCompareChart({
   }));
 
   const renderTwoLineTick = (props: {
-    x?: number;
-    y?: number;
+    x?: number | string;
+    y?: number | string;
     payload?: { value?: string; index?: number };
   }) => {
     const { x = 0, y = 0, payload } = props;
     const idx = payload?.index ?? 0;
     const row = data[idx];
     return (
-      <g transform={`translate(${x},${y})`}>
+      <g transform={`translate(${Number(x)},${Number(y)})`}>
         <text x={0} y={0} dy={12} textAnchor="middle" fill="#93c5fd" fontSize={11}>
           {row?.dayLabelTop ?? ""}
         </text>
@@ -105,7 +112,7 @@ export default function SummaryDualWeekCompareChart({
     );
   };
 
-  const renderTooltip = ({ active, payload }: TooltipProps<ValueType, NameType>) => {
+  const renderTooltip = ({ active, payload }: ChartTooltipProps) => {
     if (!active || !payload || payload.length === 0) return null;
     const row = payload[0]?.payload as
       | { currentDate?: string; previousDate?: string }
