@@ -5,11 +5,13 @@ import {
   Legend,
   Line,
   LineChart,
+  type TooltipProps,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
+import type { ValueType, NameType } from "recharts/types/component/DefaultTooltipContent";
 
 const SERIES = [
   { key: "current", name: "최근 7일", color: "#60a5fa" },
@@ -31,13 +33,19 @@ export type SummaryDualWeekCompareChartProps = {
   currentWeek?: (number | null)[];
   /** 직전 7일: 가장 오래된 날 → 가장 최근 날 (길이 7) */
   previousWeek?: (number | null)[];
+  /** 같은 슬롯의 최근/직전 실제 날짜 쌍 (길이 7) */
+  datePairs?: { currentDate: string; previousDate: string }[];
 };
 
-function padSeven(values?: (number | null)[]): number[] {
+function padSeven(values?: (number | null)[]): (number | null)[] {
   const v = values ?? [];
-  return Array.from({ length: 7 }, (_, i) =>
-    typeof v[i] === "number" ? v[i] : 0
-  );
+  return Array.from({ length: 7 }, (_, i) => (typeof v[i] === "number" ? v[i] : null));
+}
+
+function toMdLabel(dateKey: string): string {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  const yy = String(y).slice(2);
+  return `${yy}.${String(m).padStart(2, "0")}.${String(d).padStart(2, "0")}`;
 }
 
 function formatTick(variant: "currency" | "integer", v: number) {
@@ -55,16 +63,80 @@ export default function SummaryDualWeekCompareChart({
   variant,
   currentWeek,
   previousWeek,
+  datePairs,
 }: SummaryDualWeekCompareChartProps) {
   const c = padSeven(currentWeek);
   const p = padSeven(previousWeek);
+  const pairs =
+    datePairs && datePairs.length === 7
+      ? datePairs
+      : Array.from({ length: 7 }, (_, i) => ({
+          currentDate: "",
+          previousDate: "",
+        }));
 
   const data = Array.from({ length: 7 }, (_, i) => ({
     ord: i + 1,
-    dayLabel: `${i + 1}`,
+    dayLabelTop: pairs[i]?.currentDate ? toMdLabel(pairs[i].currentDate) : "—",
+    dayLabelBottom: pairs[i]?.previousDate ? toMdLabel(pairs[i].previousDate) : "—",
+    currentDate: pairs[i]?.currentDate ?? "",
+    previousDate: pairs[i]?.previousDate ?? "",
     current: c[i],
     previous: p[i],
   }));
+
+  const renderTwoLineTick = (props: {
+    x?: number;
+    y?: number;
+    payload?: { value?: string; index?: number };
+  }) => {
+    const { x = 0, y = 0, payload } = props;
+    const idx = payload?.index ?? 0;
+    const row = data[idx];
+    return (
+      <g transform={`translate(${x},${y})`}>
+        <text x={0} y={0} dy={12} textAnchor="middle" fill="#93c5fd" fontSize={11}>
+          {row?.dayLabelTop ?? ""}
+        </text>
+        <text x={0} y={0} dy={26} textAnchor="middle" fill="#c4b5fd" fontSize={11}>
+          {row?.dayLabelBottom ?? ""}
+        </text>
+      </g>
+    );
+  };
+
+  const renderTooltip = ({ active, payload }: TooltipProps<ValueType, NameType>) => {
+    if (!active || !payload || payload.length === 0) return null;
+    const row = payload[0]?.payload as
+      | { currentDate?: string; previousDate?: string }
+      | undefined;
+    const currentItem = payload.find((pItem) => String(pItem.dataKey) === "current");
+    const previousItem = payload.find((pItem) => String(pItem.dataKey) === "previous");
+    const currentRaw = currentItem?.value;
+    const previousRaw = previousItem?.value;
+    const currentNum = typeof currentRaw === "number" ? currentRaw : Number(currentRaw);
+    const previousNum = typeof previousRaw === "number" ? previousRaw : Number(previousRaw);
+    const currentText =
+      Number.isFinite(currentNum) && variant === "currency"
+        ? `${new Intl.NumberFormat("ko-KR").format(currentNum)}원`
+        : Number.isFinite(currentNum)
+          ? `${new Intl.NumberFormat("ko-KR").format(currentNum)}명`
+          : "—";
+    const previousText =
+      Number.isFinite(previousNum) && variant === "currency"
+        ? `${new Intl.NumberFormat("ko-KR").format(previousNum)}원`
+        : Number.isFinite(previousNum)
+          ? `${new Intl.NumberFormat("ko-KR").format(previousNum)}명`
+          : "—";
+    return (
+      <div className="rounded border border-zinc-700 bg-zinc-950 px-2.5 py-1.5 text-xs shadow-lg">
+        <p className="mb-1 text-zinc-400">최근: {row?.currentDate || "—"}</p>
+        <p className="mb-2 text-zinc-500">직전: {row?.previousDate || "—"}</p>
+        <p className="text-zinc-100">최근 7일: {currentText}</p>
+        <p className="text-zinc-200">직전 7일: {previousText}</p>
+      </div>
+    );
+  };
 
   return (
     <div className="w-full min-w-0">
@@ -81,10 +153,12 @@ export default function SummaryDualWeekCompareChart({
           >
             <CartesianGrid stroke="#27272a" strokeDasharray="3 3" />
             <XAxis
-              dataKey="dayLabel"
+              dataKey="dayLabelTop"
               stroke="#52525b"
-              tick={{ fill: "#a1a1aa", fontSize: 12 }}
               tickLine={{ stroke: "#3f3f46" }}
+              tick={renderTwoLineTick}
+              interval={0}
+              height={42}
             />
             <YAxis
               stroke="#52525b"
@@ -96,25 +170,7 @@ export default function SummaryDualWeekCompareChart({
               contentStyle={tooltipStyle}
               labelStyle={{ color: "#fafafa" }}
               itemStyle={{ color: "#d4d4d8" }}
-              formatter={(value, name) => {
-                const n =
-                  typeof value === "number"
-                    ? value
-                    : typeof value === "string"
-                      ? Number(value)
-                      : NaN;
-                const text =
-                  Number.isFinite(n) && variant === "currency"
-                    ? `${new Intl.NumberFormat("ko-KR").format(n)}원`
-                    : Number.isFinite(n)
-                      ? `${new Intl.NumberFormat("ko-KR").format(n)}명`
-                      : "—";
-                return [text, String(name)];
-              }}
-              labelFormatter={(_, payload) => {
-                const row = payload?.[0]?.payload as { ord?: number } | undefined;
-                return row?.ord != null ? `${row.ord}번째 날` : "";
-              }}
+              content={renderTooltip}
             />
             <Legend
               wrapperStyle={{ fontSize: "12px", paddingTop: "8px" }}

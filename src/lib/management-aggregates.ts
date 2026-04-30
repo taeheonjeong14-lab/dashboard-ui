@@ -69,6 +69,16 @@ export type SeriesChartPoint = {
   value: number | null;
 };
 
+function addDaysToDateKey(dateKey: string, delta: number): string {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  const t = Date.UTC(y, m - 1, d) + delta * 86400000;
+  const dt = new Date(t);
+  const ys = dt.getUTCFullYear();
+  const mo = String(dt.getUTCMonth() + 1).padStart(2, "0");
+  const da = String(dt.getUTCDate()).padStart(2, "0");
+  return `${ys}-${mo}-${da}`;
+}
+
 export function buildAggregatedSeries(
   rows: ManagementDayRow[],
   rangeStart: string,
@@ -76,34 +86,53 @@ export function buildAggregatedSeries(
   granularity: Granularity,
   metric: ManagementMetricKey
 ): SeriesChartPoint[] {
-  const inRange = getRowsForGranularity(rows, granularity).filter(
-    (r) => r.dateKey >= rangeStart && r.dateKey <= rangeEnd
-  );
-  if (inRange.length === 0) return [];
-
   if (granularity === "day") {
-    return inRange.map((r) => ({
-      label: r.dateKey.slice(5).replace("-", "/"),
-      sortKey: r.dateKey,
-      value: pickMetric(r, metric),
-    }));
+    const dayRows = getRowsForGranularity(rows, "day");
+    const byDate = new Map(dayRows.map((r) => [r.dateKey, pickMetric(r, metric)]));
+    const points: SeriesChartPoint[] = [];
+    for (let d = rangeStart; d <= rangeEnd; d = addDaysToDateKey(d, 1)) {
+      points.push({
+        label: d.slice(5).replace("-", "/"),
+        sortKey: d,
+        value: byDate.get(d) ?? null,
+      });
+    }
+    return points;
   }
   if (granularity === "month") {
-    return inRange.map((r) => ({
-      label: yearMonthFromDateKey(r.dateKey),
-      sortKey: yearMonthFromDateKey(r.dateKey),
-      value: pickMetric(r, metric),
-    }));
+    const monthRows = getRowsForGranularity(rows, "month");
+    const byMonth = new Map(monthRows.map((r) => [yearMonthFromDateKey(r.dateKey), pickMetric(r, metric)]));
+    const startYm = yearMonthFromDateKey(rangeStart);
+    const endYm = yearMonthFromDateKey(rangeEnd);
+    const points: SeriesChartPoint[] = [];
+    for (let ym = startYm; ym <= endYm; ym = addCalendarMonths(ym, 1)) {
+      points.push({
+        label: ym,
+        sortKey: ym,
+        value: byMonth.get(ym) ?? null,
+      });
+    }
+    return points;
   }
-  return inRange.map((r) => ({
-    label: `${r.dateKey.slice(0, 4)}?`,
-    sortKey: r.dateKey.slice(0, 4),
-    value: pickMetric(r, metric),
-  }));
+  const yearRows = getRowsForGranularity(rows, "year");
+  const byYear = new Map(yearRows.map((r) => [r.dateKey.slice(0, 4), pickMetric(r, metric)]));
+  const startYear = Number(rangeStart.slice(0, 4));
+  const endYear = Number(rangeEnd.slice(0, 4));
+  const points: SeriesChartPoint[] = [];
+  for (let y = startYear; y <= endYear; y++) {
+    const key = String(y);
+    points.push({
+      label: `${y}년`,
+      sortKey: key,
+      value: byYear.get(key) ?? null,
+    });
+  }
+  return points;
 }
 
 export type YoYMonthRow = {
   monthKey: string;
+  monthLabel: string;
   recentValue: number | null;
   previousValue: number | null;
 };
@@ -115,11 +144,16 @@ export function buildYoYMonthlyRows(
   const monthRows = getRowsForGranularity(rows, "month");
   if (monthRows.length === 0) return [];
   const byMonth = new Map(monthRows.map((r) => [yearMonthFromDateKey(r.dateKey), pickMetric(r, metric)]));
-  const endYm = yearMonthFromDateKey(monthRows[monthRows.length - 1].dateKey);
+  const dayRows = getRowsForGranularity(rows, "day");
+  const anchorDateKey =
+    dayRows.length > 0 ? dayRows[dayRows.length - 1].dateKey : monthRows[monthRows.length - 1].dateKey;
+  // 전년동월 비교는 "직전 완료월"을 최신월로 사용한다.
+  const endYm = addCalendarMonths(yearMonthFromDateKey(anchorDateKey), -1);
   const months: string[] = [];
   for (let i = 0; i < 12; i++) months.push(addCalendarMonths(endYm, -11 + i));
   return months.map((ym) => ({
     monthKey: ym,
+    monthLabel: `${Number(ym.slice(5, 7))}월`,
     recentValue: byMonth.get(ym) ?? null,
     previousValue: byMonth.get(addCalendarMonths(ym, -12)) ?? null,
   }));
@@ -130,9 +164,10 @@ export type WeekdayRow = {
   weekdayLabel: string;
   avgLast12Months: number | null;
   last7DayValue: number | null;
+  recentDateKey: string | null;
 };
 
-const WEEKDAY_LABELS = ["?", "?", "?", "?", "?", "?", "?"] as const;
+const WEEKDAY_LABELS = ["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일"] as const;
 
 function parseDateKeyAsUtc(dateKey: string): number {
   const [y, m, d] = dateKey.split("-").map(Number);
@@ -163,11 +198,13 @@ export function buildWeekdayRows(
       weekdayLabel: label,
       avgLast12Months: null,
       last7DayValue: null,
+      recentDateKey: null,
     }));
   }
 
   const byDate = new Map(dayRows.map((r) => [r.dateKey, r]));
-  const endYm = yearMonthFromDateKey(dayRows[dayRows.length - 1].dateKey);
+  const endDateKey = dayRows[dayRows.length - 1].dateKey;
+  const endYm = yearMonthFromDateKey(endDateKey);
   const windowMonths = new Set<string>();
   for (let i = 0; i < 12; i++) windowMonths.add(addCalendarMonths(endYm, -11 + i));
 
@@ -183,13 +220,14 @@ export function buildWeekdayRows(
     }
   }
 
-  const endDateKey = dayRows[dayRows.length - 1].dateKey;
   const last7 = last7DateKeys(endDateKey);
   const last7ByWeekday: (number | null)[] = [null, null, null, null, null, null, null];
+  const dateByWeekday: (string | null)[] = [null, null, null, null, null, null, null];
   for (const dk of last7) {
     const row = byDate.get(dk);
     const wd = weekdayMonday0FromDateKey(dk);
     last7ByWeekday[wd] = row ? pickMetric(row, metric) : null;
+    dateByWeekday[wd] = dk;
   }
 
   return WEEKDAY_LABELS.map((label, weekdayIndex) => ({
@@ -200,5 +238,6 @@ export function buildWeekdayRows(
         ? sumsByWeekday[weekdayIndex] / countsByWeekday[weekdayIndex]
         : null,
     last7DayValue: last7ByWeekday[weekdayIndex],
+    recentDateKey: dateByWeekday[weekdayIndex],
   }));
 }

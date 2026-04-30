@@ -14,7 +14,6 @@ export default function HospitalManagementPage() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<HospitalManagementDayRow[]>([]);
 
@@ -22,7 +21,6 @@ export default function HospitalManagementPage() {
     let active = true;
     const load = async (kind: "initial" | "refresh") => {
       try {
-        if (kind === "refresh") setRefreshing(true);
         const user = await getCurrentUser();
         if (!active) return;
         if (!user) {
@@ -53,8 +51,6 @@ export default function HospitalManagementPage() {
         if (kind === "initial") {
           setLoading(false);
           setReady(true);
-        } else {
-          setRefreshing(false);
         }
       }
     };
@@ -96,33 +92,6 @@ export default function HospitalManagementPage() {
         <p className="mt-1 text-sm text-zinc-400">
           매출·진료건수·신규 환자 유입을 기간·단위별로 보고, 전년 동월·요일별 패턴을 함께 확인합니다.
         </p>
-        <div className="mt-2 flex items-center gap-2">
-          <button
-            type="button"
-            onClick={async () => {
-              setRefreshing(true);
-              try {
-                const user = await getCurrentUser();
-                if (!user) return;
-                const scope = await fetchHospitalScope(user);
-                const hospitalId = scope.assignedHospitalId;
-                if (!hospitalId) return;
-                const data = await fetchHospitalManagementKpis(hospitalId);
-                setRows(data);
-                setError(null);
-              } catch (e) {
-                setError(e instanceof Error ? e.message : "데이터를 불러오지 못했습니다.");
-              } finally {
-                setRefreshing(false);
-              }
-            }}
-            className="border border-zinc-700 bg-zinc-900 px-2.5 py-1 text-xs text-zinc-300 hover:bg-zinc-800"
-          >
-            지금 새로고침
-          </button>
-          {refreshing ? <span className="text-xs text-zinc-500">갱신 중…</span> : null}
-
-        </div>
       </header>
 
 
@@ -131,14 +100,12 @@ export default function HospitalManagementPage() {
       <div className="flex flex-col divide-y divide-zinc-800 border border-zinc-800 bg-zinc-800">
         <ManagementMetricSection
           title="매출"
-          description="기간과 일·월·연 단위를 바꿔 매출 추이를 봅니다."
           rows={rows}
           metric="sales"
           valueFormat="currency"
         />
         <ManagementMetricSection
           title="진료건수"
-          description="동일 구조로 진료 건수를 봅니다."
           rows={rows}
           metric="visits"
           valueFormat="integer"
@@ -146,7 +113,6 @@ export default function HospitalManagementPage() {
         />
         <ManagementMetricSection
           title="신규 환자 유입"
-          description="동일 구조로 신규 환자 수를 봅니다."
           rows={rows}
           metric="newPatients"
           valueFormat="integer"

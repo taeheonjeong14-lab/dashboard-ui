@@ -20,6 +20,7 @@ const EMPTY_KPIS: SummaryKpis = {
   salesPreviousWeek: [],
   newCustomersCurrentWeek: [],
   newCustomersPreviousWeek: [],
+  datePairs: [],
 };
 
 function formatRank(value: number | null) {
@@ -103,7 +104,8 @@ export default function SummaryPage() {
               병원 일별 매출
             </h2>
             <p className="mb-3 text-sm text-zinc-500">
-              최근 7일 일별 매출(파란색)과 그 이전 7일 일별 매출(보라색)을 한 그래프에서 같은 일차 기준으로
+              데이터가 있는 마지막 날짜를 끝점으로 최근 7일 일별 매출(파란색)과 직전 7일 일별
+              매출(보라색)을 같은 슬롯에서
               비교합니다.
             </p>
             <SummaryDualWeekCompareChart
@@ -111,6 +113,7 @@ export default function SummaryPage() {
               variant="currency"
               currentWeek={kpis.salesCurrentWeek}
               previousWeek={kpis.salesPreviousWeek}
+              datePairs={kpis.datePairs}
             />
           </section>
 
@@ -122,13 +125,15 @@ export default function SummaryPage() {
               일별 신규 환자 유입
             </h2>
             <p className="mb-3 text-sm text-zinc-500">
-              최근 7일 일별 신규 환자 수와 직전 7일 일별 신규 환자 수를 한 그래프에서 비교합니다.
+              데이터가 있는 마지막 날짜를 끝점으로 최근 7일 일별 신규 환자 수와 직전 7일 일별 신규
+              환자 수를 같은 슬롯에서 비교합니다.
             </p>
             <SummaryDualWeekCompareChart
               ariaLabel="일별 신규 환자: 최근 7일 대 직전 7일"
               variant="integer"
               currentWeek={kpis.newCustomersCurrentWeek}
               previousWeek={kpis.newCustomersPreviousWeek}
+              datePairs={kpis.datePairs}
             />
           </section>
         </div>

@@ -43,6 +43,7 @@ export type SummaryKpis = {
   salesPreviousWeek: (number | null)[];
   newCustomersCurrentWeek: (number | null)[];
   newCustomersPreviousWeek: (number | null)[];
+  datePairs: { currentDate: string; previousDate: string }[];
 };
 
 /** 일별 KPI 시계열 (경영 통계 페이지). dateKey는 Asia/Seoul 기준 YYYY-MM-DD. */
@@ -346,9 +347,14 @@ export async function fetchSummaryKpis(hospitalId: string): Promise<SummaryKpis>
     });
   }
 
-  const dates = Array.from(byDate.keys()).sort().slice(-14);
-  const currentDates = dates.slice(-7);
-  const previousDates = dates.slice(-14, -7);
+  const latestDate = Array.from(byDate.keys()).sort().at(-1) ?? addCalendarDaysUtc(todayDateKeySeoul(), -1);
+  const endDate = latestDate;
+  const currentDates = Array.from({ length: 7 }, (_, i) => addCalendarDaysUtc(endDate, -6 + i));
+  const previousDates = currentDates.map((d) => addCalendarDaysUtc(d, -7));
+  const datePairs = currentDates.map((currentDate, i) => ({
+    currentDate,
+    previousDate: previousDates[i],
+  }));
 
   const toWeek = (
     weekDates: string[],
@@ -360,6 +366,7 @@ export async function fetchSummaryKpis(hospitalId: string): Promise<SummaryKpis>
     salesPreviousWeek: toWeek(previousDates, "sales"),
     newCustomersCurrentWeek: toWeek(currentDates, "patients"),
     newCustomersPreviousWeek: toWeek(previousDates, "patients"),
+    datePairs,
   };
 }
 

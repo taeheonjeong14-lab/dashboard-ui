@@ -21,6 +21,7 @@ import {
   getDataBounds,
   type Granularity,
   type ManagementMetricKey,
+  weekdayMonday0FromDateKey,
 } from "@/lib/management-aggregates";
 
 const tooltipStyle = {
@@ -59,13 +60,22 @@ function addDaysToDateKey(dateKey: string, delta: number): string {
   return `${ys}-${mo}-${da}`;
 }
 
-function todaySeoulDateKey(): string {
-  return new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Seoul" }).format(new Date());
-}
-
 function formatYmLabel(ym: string) {
   const [y, m] = ym.split("-");
   return `${y}년 ${Number(m)}월`;
+}
+
+function formatMonthOnly(ym: string) {
+  return `${Number(ym.slice(5, 7))}월`;
+}
+
+const KOREAN_WEEKDAYS = ["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일"] as const;
+
+function formatDateWithWeekday(dateKey: string | null): string {
+  if (!dateKey) return "날짜 데이터 없음";
+  const [y, m, d] = dateKey.split("-").map(Number);
+  const wd = KOREAN_WEEKDAYS[weekdayMonday0FromDateKey(dateKey)];
+  return `${y}년 ${m}월 ${d}일 (${wd})`;
 }
 
 export type ManagementMetricSectionProps = {
@@ -129,15 +139,19 @@ export default function ManagementMetricSection({
   const effectiveBounds = bounds ?? { min: "", max: "" };
   const minB = effectiveBounds.min;
   const maxB = effectiveBounds.max;
+  const maxSelectable = maxB;
 
   const start = rangeStart || minB;
-  const end = rangeEnd || maxB;
-  const clipped = minB && maxB ? clipRange(start, end, minB, maxB) : { start: "", end: "" };
+  const end = rangeEnd || maxSelectable;
+  const clipped = useMemo(
+    () => (minB && maxSelectable ? clipRange(start, end, minB, maxSelectable) : { start: "", end: "" }),
+    [start, end, minB, maxSelectable]
+  );
 
   const chartData = useMemo(() => {
     if (!clipped.start || !clipped.end || rows.length === 0) return [];
     return buildAggregatedSeries(rows, clipped.start, clipped.end, granularity, metric);
-  }, [rows, clipped.start, clipped.end, granularity, metric]);
+  }, [rows, clipped, granularity, metric]);
 
   const yoyRows = useMemo(() => buildYoYMonthlyRows(rows, metric), [rows, metric]);
   const weekdayRows = useMemo(() => buildWeekdayRows(rows, metric), [rows, metric]);
@@ -149,12 +163,10 @@ export default function ManagementMetricSection({
       setRangeEnd(bounds.max);
       return;
     }
-    const today = todaySeoulDateKey();
-    const anchorEnd = today < bounds.max ? today : bounds.max;
     const years = preset === "1y" ? 1 : 3;
-    const from = addDaysToDateKey(anchorEnd, -years * 365);
+    const from = addDaysToDateKey(bounds.max, -years * 365);
     setRangeStart(from < bounds.min ? bounds.min : from);
-    setRangeEnd(anchorEnd);
+    setRangeEnd(bounds.max);
   };
 
   const hasData = rows.length > 0 && bounds != null;
@@ -173,16 +185,16 @@ export default function ManagementMetricSection({
       ) : (
         <div className="flex flex-col gap-8">
           <div>
-            <h3 className="mb-2 text-sm font-medium text-zinc-300">시계열</h3>
+            <h3 className="mb-2 text-sm font-medium text-zinc-300">{title} 추이</h3>
             <div className="mb-3 flex flex-wrap items-end gap-3">
               <div className="flex flex-wrap gap-2">
                 <label className="flex flex-col gap-0.5 text-xs text-zinc-500">
                   시작
                   <input
                     type="date"
-                    className="border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm text-zinc-100"
+                    className="h-8 border border-zinc-700 bg-zinc-900 px-2 text-xs text-zinc-100"
                     min={minB}
-                    max={maxB}
+                    max={maxSelectable}
                     value={rangeStart || minB}
                     onChange={(e) => setRangeStart(e.target.value)}
                   />
@@ -191,10 +203,10 @@ export default function ManagementMetricSection({
                   종료
                   <input
                     type="date"
-                    className="border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm text-zinc-100"
+                    className="h-8 border border-zinc-700 bg-zinc-900 px-2 text-xs text-zinc-100"
                     min={minB}
-                    max={maxB}
-                    value={rangeEnd || maxB}
+                    max={maxSelectable}
+                    value={rangeEnd || maxSelectable}
                     onChange={(e) => setRangeEnd(e.target.value)}
                   />
                 </label>
@@ -211,7 +223,7 @@ export default function ManagementMetricSection({
                     key={key}
                     type="button"
                     onClick={() => setPreset(key)}
-                    className="border border-zinc-700 bg-zinc-900 px-2.5 py-1 text-xs text-zinc-300 hover:bg-zinc-800"
+                    className="h-8 border border-zinc-700 bg-zinc-900 px-2.5 text-xs text-zinc-300 hover:bg-zinc-800"
                   >
                     {label}
                   </button>
@@ -292,7 +304,9 @@ export default function ManagementMetricSection({
                     name={title}
                     stroke="#60a5fa"
                     strokeWidth={2}
-                    dot={false}
+                    dot={
+                      granularity === "day" ? false : { r: 3, fill: "#60a5fa", strokeWidth: 0 }
+                    }
                     connectNulls
                   />
                 </LineChart>
@@ -305,18 +319,15 @@ export default function ManagementMetricSection({
 
           <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
             <div>
-              <h3 className="mb-2 text-sm font-medium text-zinc-300">전년 동월 대비 (월간, 최근 12개월)</h3>
-              <p className="mb-2 text-xs text-zinc-600">
-                데이터가 있는 가장 최근 월을 끝으로 역산한 12개월과, 각 월의 1년 전 같은 달 값을
-                비교합니다. 1년 전 달 데이터가 없으면 비웁니다.
-              </p>
+              <h3 className="mb-2 text-sm font-medium text-zinc-300">
+                전년 동월 대비 {title} 비교 분석 (월간, 최근 12개월)
+              </h3>
               <div className="h-[320px] w-full min-w-0 border border-zinc-800 bg-zinc-900/60 p-2">
                 <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
                   <BarChart data={yoyRows} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
                     <CartesianGrid stroke="#27272a" strokeDasharray="3 3" />
                     <XAxis
-                      dataKey="monthKey"
-                      tickFormatter={(v) => formatYmLabel(String(v))}
+                      dataKey="monthLabel"
                       stroke="#52525b"
                       tick={{ fill: "#a1a1aa", fontSize: 11 }}
                       interval="preserveStartEnd"
@@ -330,13 +341,38 @@ export default function ManagementMetricSection({
                     <Tooltip
                       contentStyle={tooltipStyle}
                       labelStyle={{ color: "#fafafa" }}
-                      labelFormatter={(label) => formatYmLabel(String(label))}
-                      formatter={(value, name) => {
-                        const n = typeof value === "number" ? value : Number(value);
-                        return [
-                          formatValue(valueFormat, Number.isFinite(n) ? n : null, valueSuffix),
-                          String(name),
-                        ];
+                      content={({ payload }) => {
+                        const row = payload?.[0]?.payload as
+                          | {
+                              monthKey?: string;
+                              recentValue?: number | null;
+                              previousValue?: number | null;
+                            }
+                          | undefined;
+                        const ym = row?.monthKey;
+                        if (!ym) return null;
+                        const previousYm = `${Number(ym.slice(0, 4)) - 1}${ym.slice(4)}`;
+                        const recentText = formatValue(
+                          valueFormat,
+                          row?.recentValue ?? null,
+                          valueSuffix
+                        );
+                        const previousText = formatValue(
+                          valueFormat,
+                          row?.previousValue ?? null,
+                          valueSuffix
+                        );
+                        return (
+                          <div className="rounded border border-zinc-700 bg-zinc-950 px-2.5 py-1.5 text-xs shadow-lg">
+                            <p className="mb-1 text-zinc-300">{formatMonthOnly(ym)}</p>
+                            <p className="text-zinc-100">
+                              {formatYmLabel(ym)}: {recentText}
+                            </p>
+                            <p className="text-zinc-200">
+                              {formatYmLabel(previousYm)}: {previousText}
+                            </p>
+                          </div>
+                        );
                       }}
                     />
                     <Legend
@@ -344,15 +380,15 @@ export default function ManagementMetricSection({
                       formatter={(value) => <span style={{ color: "#d4d4d8" }}>{value}</span>}
                     />
                     <Bar
-                      dataKey="recentValue"
-                      name="해당 월"
-                      fill={BAR_COLORS.current}
-                      radius={[2, 2, 0, 0]}
-                    />
-                    <Bar
                       dataKey="previousValue"
                       name="1년 전 같은 달"
                       fill={BAR_COLORS.previous}
+                      radius={[2, 2, 0, 0]}
+                    />
+                    <Bar
+                      dataKey="recentValue"
+                      name="해당 월"
+                      fill={BAR_COLORS.current}
                       radius={[2, 2, 0, 0]}
                     />
                   </BarChart>
@@ -361,11 +397,7 @@ export default function ManagementMetricSection({
             </div>
 
             <div>
-              <h3 className="mb-2 text-sm font-medium text-zinc-300">요일별</h3>
-              <p className="mb-2 text-xs text-zinc-600">
-                최근 12개월(데이터 마지막 월 기준) 동안 요일별 일평균과, 데이터 기준 마지막 날 포함
-                연속 7일의 해당 요일 값을 함께 표시합니다.
-              </p>
+              <h3 className="mb-2 text-sm font-medium text-zinc-300">요일별 {title} 분석</h3>
               <div className="h-[320px] w-full min-w-0 border border-zinc-800 bg-zinc-900/60 p-2">
                 <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
                   <BarChart data={weekdayRows} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
@@ -383,17 +415,36 @@ export default function ManagementMetricSection({
                     <Tooltip
                       contentStyle={tooltipStyle}
                       labelStyle={{ color: "#fafafa" }}
-                      formatter={(value, name) => {
-                        const n = typeof value === "number" ? value : Number(value);
-                        const isAverage = String(name) === "12개월 일평균";
-                        return [
-                          formatValue(
-                            isAverage && valueFormat !== "currency" ? "decimal" : valueFormat,
-                            Number.isFinite(n) ? n : null,
-                            valueFormat === "currency" ? undefined : valueSuffix
-                          ),
-                          String(name),
-                        ];
+                      content={({ payload }) => {
+                        const row = payload?.[0]?.payload as
+                          | { weekdayLabel?: string; recentDateKey?: string | null }
+                          | undefined;
+                        const recentText = formatDateWithWeekday(row?.recentDateKey ?? null);
+                        const avgItem = payload?.find((p) => p.dataKey === "avgLast12Months");
+                        const last7Item = payload?.find((p) => p.dataKey === "last7DayValue");
+                        const avgRaw = avgItem?.value;
+                        const last7Raw = last7Item?.value;
+                        const avgNum = typeof avgRaw === "number" ? avgRaw : Number(avgRaw);
+                        const last7Num = typeof last7Raw === "number" ? last7Raw : Number(last7Raw);
+                        const avgText = formatValue(
+                          valueFormat !== "currency" ? "decimal" : valueFormat,
+                          Number.isFinite(avgNum) ? avgNum : null,
+                          valueFormat === "currency" ? undefined : valueSuffix
+                        );
+                        const last7Text = formatValue(
+                          valueFormat,
+                          Number.isFinite(last7Num) ? last7Num : null,
+                          valueSuffix
+                        );
+                        return (
+                          <div className="rounded border border-zinc-700 bg-zinc-950 px-2.5 py-1.5 text-xs shadow-lg">
+                            <p className="mb-1 text-zinc-300">{row?.weekdayLabel ?? ""}</p>
+                            <p className="text-zinc-200">
+                              최근 12개월 {row?.weekdayLabel ?? "해당 요일"} 평균: {avgText}
+                            </p>
+                            <p className="text-zinc-100">{recentText}: {last7Text}</p>
+                          </div>
+                        );
                       }}
                     />
                     <Legend
