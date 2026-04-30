@@ -2,15 +2,6 @@ import type { User } from "@supabase/supabase-js";
 import { getSupabaseClient } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/auth";
 
-export type RangeDays = 7 | 30 | 90;
-
-export type BlogViewPoint = {
-  metric_date: string;
-  hospital_id: string | null;
-  hospital_name: string | null;
-  blog_views: number | null;
-};
-
 export type HospitalOption = {
   hospital_id: string;
   hospital_name: string;
@@ -63,6 +54,14 @@ export type BlogRankSummaryRow = {
   blog_rank_pet_popular: number | null;
 };
 
+/** 블로그 KPI 시계열 (analytics.chart_blog_period_view). dateKey는 Asia/Seoul 기준 YYYY-MM-DD. */
+export type BlogPeriodDayRow = {
+  dateKey: string;
+  periodType: "day" | "month" | "year";
+  views: number | null;
+  uniqueVisitors: number | null;
+};
+
 export type PlaceRankSummaryRow = {
   keyword: string;
   rank_value: number | null;
@@ -81,11 +80,6 @@ function addCalendarDaysUtc(dateKey: string, delta: number): string {
   const mo = String(dt.getUTCMonth() + 1).padStart(2, "0");
   const da = String(dt.getUTCDate()).padStart(2, "0");
   return `${ys}-${mo}-${da}`;
-}
-
-function getStartDate(days: RangeDays) {
-  const end = todayDateKeySeoul();
-  return addCalendarDaysUtc(end, -(days - 1));
 }
 
 function asNumberOrNull(value: unknown): number | null {
@@ -209,31 +203,6 @@ function latestSnapshotRows<T extends Record<string, unknown>>(rows: T[]): T[] {
   return stamped
     .filter((item) => item.date.getTime() === maxTime)
     .map((item) => item.row);
-}
-
-export async function fetchBlogViews(
-  rangeDays: RangeDays,
-  hospitalId: string | "all"
-) {
-  const supabase = getSupabaseClient();
-  const startDate = getStartDate(rangeDays);
-
-  let query = supabase
-    .schema("analytics")
-    .from("analytics_daily_metrics_daily_view")
-    .select("metric_date,hospital_id,hospital_name,blog_views")
-    .gte("metric_date", startDate)
-    .not("blog_views", "is", null)
-    .order("metric_date", { ascending: true });
-
-  if (hospitalId !== "all") {
-    query = query.eq("hospital_id", hospitalId);
-  }
-
-  const { data, error } = await query;
-  if (error) throw error;
-
-  return (data ?? []) as BlogViewPoint[];
 }
 
 function userNameFromProfile(profile: { name?: unknown } | null | undefined): string | null {
@@ -435,6 +404,50 @@ export async function fetchHospitalManagementRawRows(
     .eq("hospital_id", hospitalId);
   if (error) throw error;
   return (data ?? []) as Record<string, unknown>[];
+}
+
+export async function fetchBlogPeriodKpis(
+  hospitalId: string
+): Promise<BlogPeriodDayRow[]> {
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .schema("analytics")
+    .from("chart_blog_period_view")
+    .select("*")
+    .eq("hospital_id", hospitalId)
+    .in("period_type", ["day", "month", "year"]);
+  if (error) throw error;
+
+  const rawRows = (data ?? []) as Record<string, unknown>[];
+
+  const mapped = rawRows
+    .map((rawRow) => {
+      const parsedDate = parseDateValue(rawRow);
+      if (!parsedDate) return null;
+      const periodType = String(rawRow.period_type ?? "").toLowerCase();
+      if (periodType !== "day" && periodType !== "month" && periodType !== "year") return null;
+      return {
+        dateKey: toSeoulDateKey(parsedDate),
+        periodType,
+        views: firstNumber(rawRow, ["blog_views", "views"]),
+        uniqueVisitors: firstNumber(rawRow, [
+          "blog_unique_visitors",
+          "unique_visitors",
+        ]),
+      } as BlogPeriodDayRow;
+    })
+    .filter((row): row is BlogPeriodDayRow => row !== null);
+
+  const dedup = new Map<string, BlogPeriodDayRow>();
+  for (const row of mapped) {
+    dedup.set(`${row.periodType}:${row.dateKey}`, row);
+  }
+
+  return Array.from(dedup.values()).sort((a, b) => {
+    if (a.periodType === b.periodType) return a.dateKey.localeCompare(b.dateKey);
+    return a.periodType.localeCompare(b.periodType);
+  });
 }
 
 export async function fetchSummaryBlogRanks(hospitalId: string): Promise<BlogRankSummaryRow[]> {
