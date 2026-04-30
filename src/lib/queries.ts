@@ -251,17 +251,17 @@ export async function fetchHospitalScope(user?: User | null): Promise<HospitalSc
   const { data: profile, error: profileError } = await supabase
     .schema("core")
     .from("users")
-    .select("id,hospital_id,role,name")
+    .select('id,"hospitalId",name')
     .eq("id", resolved.id)
     .maybeSingle();
   if (profileError) throw profileError;
 
   const userName = userNameFromProfile(profile);
   const assignedHospitalId =
-    profile?.hospital_id != null ? String(profile.hospital_id) : null;
+    profile?.hospitalId != null ? String(profile.hospitalId) : null;
 
-  const role = String(profile?.role ?? "member").toLowerCase();
-  const isAdmin = role === "admin";
+  // dashboard-ui 측 admin 분기는 현재 비활성. 관리/배정은 별도 관리자 앱에서 처리.
+  const isAdmin = false;
 
   if (isAdmin) {
     const { data: hospitals, error: hospitalError } = await supabase
@@ -286,7 +286,7 @@ export async function fetchHospitalScope(user?: User | null): Promise<HospitalSc
     };
   }
 
-  if (!profile?.hospital_id) {
+  if (!profile?.hospitalId) {
     return { isAdmin: false, hospitals: [], userName, assignedHospitalId };
   }
 
@@ -294,7 +294,7 @@ export async function fetchHospitalScope(user?: User | null): Promise<HospitalSc
     .schema("core")
     .from("hospitals")
     .select("id,name,naver_blog_id,address")
-    .eq("id", profile.hospital_id)
+    .eq("id", profile.hospitalId)
     .order("name", { ascending: true });
   if (hospitalError) throw hospitalError;
 
