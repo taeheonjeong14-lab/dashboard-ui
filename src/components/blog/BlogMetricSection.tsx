@@ -190,7 +190,7 @@ export default function BlogMetricSection({
             </div>
           </div>
 
-          <div className="h-[280px] w-full min-w-0 border border-zinc-800 bg-zinc-900/60 p-2">
+          <div className="h-[280px] w-full min-w-0">
             <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
               <LineChart data={chartData} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
                 <CartesianGrid stroke="#27272a" strokeDasharray="3 3" />
@@ -243,7 +243,7 @@ export default function BlogMetricSection({
               </LineChart>
             </ResponsiveContainer>
           </div>
-          <p className="text-xs text-zinc-600">
+          <p className="text-xs italic text-zinc-600">
             기간은 서울 기준 날짜이며, 차트에 값이 없는 구간은 선이 끊깁니다.
             {footnote ? ` ${footnote}` : ""}
           </p>

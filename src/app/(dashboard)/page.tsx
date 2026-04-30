@@ -95,8 +95,8 @@ export default function SummaryPage() {
     <main className="w-full max-w-none px-4 py-4 sm:px-5 sm:py-5 lg:px-6">
       <SummaryHeader />
 
-      <div className="mt-3 flex flex-col divide-y divide-zinc-800 border border-zinc-800 bg-zinc-800">
-        <div className="grid grid-cols-1 gap-px bg-zinc-800 lg:grid-cols-2">
+      <div className="mt-3 flex flex-col divide-y divide-zinc-800">
+        <div className="grid grid-cols-1 gap-px lg:grid-cols-2">
           <section
             aria-labelledby="summary-revenue"
             className="min-w-0 bg-zinc-950 p-4 sm:p-5"

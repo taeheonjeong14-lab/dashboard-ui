@@ -1,0 +1,45 @@
+---
+description: 대시보드 UI 3단 레벨(페이지·섹션·그래프) 시각·구성 원칙
+alwaysApply: true
+---
+
+# Dashboard UI Principles
+
+상세본은 [docs/ui-principles.md](docs/ui-principles.md). 화면 작업 시 다음을 항상 따른다.
+
+## Lv1 — 페이지
+
+- `<main>` 안에 페이지 타이틀(`h1`) + 1줄 설명(`p`)만.
+- 보더·박스 금지(헤더에 `border-b`도 두지 않는다).
+- 표준 컨테이너: `w-full max-w-none px-4 py-4 sm:px-5 sm:py-5 lg:px-6`.
+- 헤더 마진: `mb-3`.
+
+## Lv2 — 섹션 (한 지표 단위)
+
+- 섹션 타이틀(`h2`) + 1줄 설명(`p`) 필수.
+- **위·아래 보더만**. 좌·우 보더 금지. 페이지 외곽에 박스 금지.
+- 페이지에서 섹션을 묶을 땐 `flex flex-col divide-y divide-zinc-800` 한 줄로 이어붙인다.
+- 섹션 자체: `border-b border-zinc-800 bg-zinc-950 p-4 sm:p-5 last:border-b-0`.
+
+## Lv3 — 그래프/표/KPI 카드
+
+- 타이틀(`h3`) + 본체 + (컨트롤) + (이탤릭 주석).
+- **본체를 감싸는 카드의 보더·배경 금지**. 차트의 grid·축, 표의 row 구분선은 유지.
+- 컨트롤 표준 크기: 버튼·input·토글 모두 `h-8 text-xs`. 그래프 위에 한 줄로 가로 배치(왼쪽: 기간/프리셋, 오른쪽: 단위 토글).
+- 주석은 본체 바로 아래에 `text-xs text-zinc-600 italic` 한 줄.
+
+## 상태 표기
+
+- 로딩: `<p className="text-sm text-zinc-500">불러오는 중…</p>`
+- 빈상태(섹션 본문 fallback): `<p className="border border-zinc-800 bg-zinc-900/50 p-4 text-sm text-zinc-500">표시할 데이터가 없습니다.</p>`
+- 에러: `<p className="mt-3 border border-red-900/50 bg-red-950/40 p-3 text-sm text-red-300">…</p>`
+
+## 작업 전 체크리스트
+
+1. Lv1에 보더·박스가 없는가
+2. Lv2가 위·아래 보더만 가지는가 (페이지가 외곽 박스를 두르지 않는가)
+3. Lv2에 타이틀과 1줄 설명이 모두 있는가
+4. Lv3 본체에 카드 보더·배경이 없는가
+5. 컨트롤이 모두 `h-8 text-xs` 인가
+6. 로딩/빈상태/에러 문구가 표준인가
+7. 주석이 있다면 `italic` 인가

@@ -38,7 +38,7 @@ export default function BlogRanksSection({
         </p>
       )}
       {!loading && rows.length > 0 && (
-        <div className="overflow-x-auto border border-zinc-800 bg-zinc-900/30">
+        <div className="overflow-x-auto">
           <table className="w-full min-w-[740px] border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-zinc-800 text-zinc-400">

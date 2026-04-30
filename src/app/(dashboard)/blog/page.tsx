@@ -75,7 +75,7 @@ export default function BlogPerformancePage() {
 
   return (
     <main className="min-h-screen w-full max-w-none px-4 py-4 sm:px-5 sm:py-5 lg:px-6">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 pb-3">
+      <header className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-zinc-50">네이버 블로그 통계</h1>
           <p className="mt-1 text-sm text-zinc-400">
@@ -94,7 +94,7 @@ export default function BlogPerformancePage() {
 
       {loading && <p className="mt-3 text-sm text-zinc-500">불러오는 중…</p>}
 
-      <div className="mt-3 flex flex-col divide-y divide-zinc-800 border border-zinc-800 bg-zinc-800">
+      <div className="flex flex-col divide-y divide-zinc-800">
         <BlogMetricSection
           title="블로그 조회수"
           description="기간 내 일/월/연 단위 블로그 조회수 추이입니다."

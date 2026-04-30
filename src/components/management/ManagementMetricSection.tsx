@@ -252,7 +252,7 @@ export default function ManagementMetricSection({
                 ))}
               </div>
             </div>
-            <div className="h-[280px] w-full min-w-0 border border-zinc-800 bg-zinc-900/60 p-2">
+            <div className="h-[280px] w-full min-w-0">
               <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
                 <LineChart data={chartData} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
                   <CartesianGrid stroke="#27272a" strokeDasharray="3 3" />
@@ -312,7 +312,7 @@ export default function ManagementMetricSection({
                 </LineChart>
               </ResponsiveContainer>
             </div>
-            <p className="mt-1 text-xs text-zinc-600">
+            <p className="mt-1 text-xs italic text-zinc-600">
               기간은 서울 기준 날짜이며, 차트에 값이 없는 구간은 선이 끊깁니다.
             </p>
           </div>
@@ -322,7 +322,7 @@ export default function ManagementMetricSection({
               <h3 className="mb-2 text-sm font-medium text-zinc-300">
                 전년 동월 대비 {title} 비교 분석 (월간, 최근 12개월)
               </h3>
-              <div className="h-[320px] w-full min-w-0 border border-zinc-800 bg-zinc-900/60 p-2">
+              <div className="h-[320px] w-full min-w-0">
                 <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
                   <BarChart data={yoyRows} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
                     <CartesianGrid stroke="#27272a" strokeDasharray="3 3" />
@@ -398,7 +398,7 @@ export default function ManagementMetricSection({
 
             <div>
               <h3 className="mb-2 text-sm font-medium text-zinc-300">요일별 {title} 분석</h3>
-              <div className="h-[320px] w-full min-w-0 border border-zinc-800 bg-zinc-900/60 p-2">
+              <div className="h-[320px] w-full min-w-0">
                 <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
                   <BarChart data={weekdayRows} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
                     <CartesianGrid stroke="#27272a" strokeDasharray="3 3" />

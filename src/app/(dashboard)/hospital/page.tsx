@@ -97,15 +97,17 @@ export default function HospitalManagementPage() {
 
       {loading && <p className="mb-2 text-sm text-zinc-500">불러오는 중…</p>}
 
-      <div className="flex flex-col divide-y divide-zinc-800 border border-zinc-800 bg-zinc-800">
+      <div className="flex flex-col divide-y divide-zinc-800">
         <ManagementMetricSection
           title="매출"
+          description="기간 내 일/월/연 단위 매출 추이와 전년 동월·요일별 분석을 함께 보여줍니다."
           rows={rows}
           metric="sales"
           valueFormat="currency"
         />
         <ManagementMetricSection
           title="진료건수"
+          description="기간 내 일/월/연 단위 진료건수 추이와 전년 동월·요일별 분석을 함께 보여줍니다."
           rows={rows}
           metric="visits"
           valueFormat="integer"
@@ -113,6 +115,7 @@ export default function HospitalManagementPage() {
         />
         <ManagementMetricSection
           title="신규 환자 유입"
+          description="기간 내 일/월/연 단위 신규 환자 추이와 전년 동월·요일별 분석을 함께 보여줍니다."
           rows={rows}
           metric="newPatients"
           valueFormat="integer"
