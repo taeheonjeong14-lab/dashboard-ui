@@ -94,23 +94,29 @@ export default function BlogPerformancePage() {
 
       {loading && <p className="mt-3 text-sm text-zinc-500">불러오는 중…</p>}
 
-      <div className="flex flex-col divide-y divide-zinc-800">
-        <BlogMetricSection
-          title="블로그 조회수"
-          description="기간 내 일/월/연 단위 블로그 조회수 추이입니다."
-          rows={rows}
-          metric="views"
-          valueSuffix="회"
-        />
-        <BlogMetricSection
-          title="블로그 순방문자수"
-          description="기간 내 일/월/연 단위 블로그 순방문자수 추이입니다."
-          rows={rows}
-          metric="uniqueVisitors"
-          valueSuffix="명"
-          footnote="월·연 값은 일일 고유 방문자의 합으로 계산됩니다."
-        />
-        <BlogRanksSection rows={blogRanks} loading={loading} headingId="blog-ranks" />
+      <div className="border-t border-zinc-800">
+        <div className="grid grid-cols-1 lg:grid-cols-3">
+          <div className="lg:col-span-1">
+            <BlogRanksSection rows={blogRanks} loading={loading} headingId="blog-ranks" />
+          </div>
+          <div className="flex flex-col divide-y divide-zinc-800 lg:col-span-2">
+            <BlogMetricSection
+              title="블로그 조회수"
+              description="기간 내 일/월/연 단위 블로그 조회수 추이입니다."
+              rows={rows}
+              metric="views"
+              valueSuffix="회"
+            />
+            <BlogMetricSection
+              title="블로그 순방문자수"
+              description="기간 내 일/월/연 단위 블로그 순방문자수 추이입니다."
+              rows={rows}
+              metric="uniqueVisitors"
+              valueSuffix="명"
+              footnote="월·연 값은 일일 고유 방문자의 합으로 계산됩니다."
+            />
+          </div>
+        </div>
       </div>
 
       {error && (

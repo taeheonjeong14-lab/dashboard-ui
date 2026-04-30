@@ -52,6 +52,10 @@ export type BlogRankSummaryRow = {
   blog_rank_general: number | null;
   blog_rank_integrated: number | null;
   blog_rank_pet_popular: number | null;
+  blog_rank_tab_url: string | null;
+  blog_rank_general_url: string | null;
+  blog_rank_integrated_url: string | null;
+  blog_rank_pet_popular_url: string | null;
 };
 
 /** 블로그 KPI 시계열 (analytics.chart_blog_period_view). dateKey는 Asia/Seoul 기준 YYYY-MM-DD. */
@@ -466,6 +470,11 @@ export async function fetchSummaryBlogRanks(hospitalId: string): Promise<BlogRan
       blog_rank_general: asNumberOrNull(row.blog_rank_general),
       blog_rank_integrated: asNumberOrNull(row.blog_rank_integrated),
       blog_rank_pet_popular: asNumberOrNull(row.blog_rank_pet_popular),
+      blog_rank_tab_url: asStringOrNull(row.blog_rank_tab_url),
+      blog_rank_general_url: asStringOrNull(row.blog_rank_general_url),
+      blog_rank_integrated_url: asStringOrNull(row.blog_rank_integrated_url),
+      blog_rank_pet_popular_url:
+        asStringOrNull(row.blog_rank_popular_url) ?? asStringOrNull(row.blog_rank_pet_popular_url),
     }))
     .sort((a, b) => a.keyword.localeCompare(b.keyword, "ko"));
 }

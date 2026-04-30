@@ -11,6 +11,7 @@ alwaysApply: true
 
 - `<main>` 안에 페이지 타이틀(`h1`) + 1줄 설명(`p`)만.
 - 보더·박스 금지(헤더에 `border-b`도 두지 않는다).
+- 단, Lv1 헤더와 첫 Lv2 섹션 사이에는 수평 보더 1줄(`border-t border-zinc-800`)을 둔다.
 - 표준 컨테이너: `w-full max-w-none px-4 py-4 sm:px-5 sm:py-5 lg:px-6`.
 - 헤더 마진: `mb-3`.
 
@@ -18,8 +19,9 @@ alwaysApply: true
 
 - 섹션 타이틀(`h2`) + 1줄 설명(`p`) 필수.
 - **위·아래 보더만**. 좌·우 보더 금지. 페이지 외곽에 박스 금지.
-- 페이지에서 섹션을 묶을 땐 `flex flex-col divide-y divide-zinc-800` 한 줄로 이어붙인다.
+- 페이지에서 섹션을 묶을 땐 `flex flex-col border-t border-zinc-800 divide-y divide-zinc-800`로 시작선 1줄 + 섹션 사이 라인을 유지한다.
 - 섹션 자체: `border-b border-zinc-800 bg-zinc-950 p-4 sm:p-5 last:border-b-0`.
+- 좌·우 분할 변형 허용: 한 페이지 안에서 Lv2 섹션을 좌·우로 나란히 둘 수 있다(예: 좌 1/3 + 우 2/3, `grid-cols-1 lg:grid-cols-3`). 이 경우에도 좌·우 칸 사이 보더는 두지 않는다.
 
 ## Lv3 — 그래프/표/KPI 카드
 
@@ -36,7 +38,7 @@ alwaysApply: true
 
 ## 작업 전 체크리스트
 
-1. Lv1에 보더·박스가 없는가
+1. Lv1에 보더·박스가 없고 Lv1↔Lv2 사이 수평 보더 1줄이 있는가
 2. Lv2가 위·아래 보더만 가지는가 (페이지가 외곽 박스를 두르지 않는가)
 3. Lv2에 타이틀과 1줄 설명이 모두 있는가
 4. Lv3 본체에 카드 보더·배경이 없는가
