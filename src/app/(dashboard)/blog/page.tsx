@@ -77,19 +77,9 @@ export default function BlogPerformancePage() {
 
   return (
     <main className="min-h-screen w-full max-w-none px-4 py-4 sm:px-5 sm:py-5 lg:px-6">
-      <header className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-zinc-50">네이버 블로그 통계</h1>
-          <p className="mt-1 text-sm text-zinc-400">
-            블로그 조회수·순방문자수 추이와 주요 키워드 노출 순위를 확인합니다.
-          </p>
-        </div>
-      </header>
+      {loading && <p className="text-sm text-zinc-500">불러오는 중…</p>}
 
-      {loading && <p className="mt-3 text-sm text-zinc-500">불러오는 중…</p>}
-
-      <div className="border-t border-zinc-800">
-        <div className="grid grid-cols-1 lg:grid-cols-3">
+      <div className="grid grid-cols-1 lg:grid-cols-3">
           <div className="lg:col-span-1">
             <BlogRanksSection
               rows={blogRanks}
@@ -115,7 +105,6 @@ export default function BlogPerformancePage() {
               footnote="월·연 값은 일일 고유 방문자의 합으로 계산됩니다."
             />
           </div>
-        </div>
       </div>
 
       {error && (

@@ -15,8 +15,9 @@ export type KeywordTargetRow = {
   hospital_id: string | null;
   keyword: string;
   is_active: boolean;
-  priority: number;
   source: string;
+  metadata?: unknown | null;
+  created_at?: string | null;
   updated_at?: string | null;
 };
 
@@ -25,7 +26,7 @@ export type HospitalScope = {
   hospitals: HospitalOption[];
   /** core.users.name */
   userName: string | null;
-  /** core.users.hospital_id (배정 병원) */
+  /** core.users.hospital_id (text, snake_case) */
   assignedHospitalId: string | null;
 };
 
@@ -81,6 +82,13 @@ export type BlogRankTrendPoint = {
 export type PlaceRankSummaryRow = {
   keyword: string;
   rank_value: number | null;
+};
+
+/** 플레이스 KPI 시계열 (analytics.chart_place_period_view). */
+export type PlacePeriodDayRow = {
+  dateKey: string;
+  periodType: "day" | "month" | "year";
+  inflow: number | null;
 };
 
 /** 오늘 날짜 (Asia/Seoul 달력 기준 YYYY-MM-DD) */
@@ -236,14 +244,14 @@ export async function fetchHospitalScope(user?: User | null): Promise<HospitalSc
   const { data: profile, error: profileError } = await supabase
     .schema("core")
     .from("users")
-    .select('id,"hospitalId",name')
+    .select("id,hospital_id,name")
     .eq("id", resolved.id)
     .maybeSingle();
   if (profileError) throw profileError;
 
   const userName = userNameFromProfile(profile);
   const assignedHospitalId =
-    profile?.hospitalId != null ? String(profile.hospitalId) : null;
+    profile?.hospital_id != null ? String(profile.hospital_id) : null;
 
   // dashboard-ui 측 admin 분기는 현재 비활성. 관리/배정은 별도 관리자 앱에서 처리.
   const isAdmin = false;
@@ -271,7 +279,7 @@ export async function fetchHospitalScope(user?: User | null): Promise<HospitalSc
     };
   }
 
-  if (!profile?.hospitalId) {
+  if (!profile?.hospital_id) {
     return { isAdmin: false, hospitals: [], userName, assignedHospitalId };
   }
 
@@ -279,7 +287,7 @@ export async function fetchHospitalScope(user?: User | null): Promise<HospitalSc
     .schema("core")
     .from("hospitals")
     .select("id,name,naver_blog_id,address")
-    .eq("id", profile.hospitalId)
+    .eq("id", profile.hospital_id)
     .order("name", { ascending: true });
   if (hospitalError) throw hospitalError;
 
@@ -655,6 +663,84 @@ export async function fetchSummaryPlaceRanks(hospitalId: string): Promise<PlaceR
     .sort((a, b) => a.keyword.localeCompare(b.keyword, "ko"));
 }
 
+export async function fetchPlacePeriodKpis(
+  hospitalId: string
+): Promise<PlacePeriodDayRow[]> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .schema("analytics")
+    .from("chart_place_period_view")
+    .select("*")
+    .eq("hospital_id", hospitalId)
+    .in("period_type", ["day", "month", "year"]);
+  if (error) throw error;
+
+  const mapped = ((data ?? []) as Record<string, unknown>[])
+    .map((rawRow) => {
+      const parsedDate = parseDateValue(rawRow);
+      if (!parsedDate) return null;
+      const periodType = String(rawRow.period_type ?? "").toLowerCase();
+      if (periodType !== "day" && periodType !== "month" && periodType !== "year") return null;
+      return {
+        dateKey: toSeoulDateKey(parsedDate),
+        periodType,
+        inflow: firstNumber(rawRow, ["smartplace_inflow", "place_inflow", "inflow"]),
+      } as PlacePeriodDayRow;
+    })
+    .filter((row): row is PlacePeriodDayRow => row !== null);
+
+  const dedup = new Map<string, PlacePeriodDayRow>();
+  for (const row of mapped) {
+    dedup.set(`${row.periodType}:${row.dateKey}`, row);
+  }
+
+  const fromView = Array.from(dedup.values()).sort((a, b) => {
+    if (a.periodType === b.periodType) return a.dateKey.localeCompare(b.dateKey);
+    return a.periodType.localeCompare(b.periodType);
+  });
+  if (fromView.length > 0) return fromView;
+
+  // Fallback: view가 비어 있으면 원본 일별 테이블을 직접 집계한다.
+  const { data: rawData, error: rawError } = await supabase
+    .schema("analytics")
+    .from("analytics_smartplace_daily_metrics")
+    .select("hospital_id,metric_date,smartplace_inflow")
+    .eq("hospital_id", hospitalId);
+  if (rawError) throw rawError;
+
+  const dayMap = new Map<string, number>();
+  const monthMap = new Map<string, number>();
+  const yearMap = new Map<string, number>();
+
+  for (const row of (rawData ?? []) as Record<string, unknown>[]) {
+    const date = parseDateValue(row);
+    if (!date) continue;
+    const dateKey = toSeoulDateKey(date);
+    const value = asNumberOrNull(row.smartplace_inflow) ?? 0;
+    dayMap.set(dateKey, (dayMap.get(dateKey) ?? 0) + value);
+    const ym = dateKey.slice(0, 7);
+    monthMap.set(ym, (monthMap.get(ym) ?? 0) + value);
+    const y = dateKey.slice(0, 4);
+    yearMap.set(y, (yearMap.get(y) ?? 0) + value);
+  }
+
+  const fallbackRows: PlacePeriodDayRow[] = [];
+  for (const [dateKey, inflow] of dayMap.entries()) {
+    fallbackRows.push({ dateKey, periodType: "day", inflow });
+  }
+  for (const [ym, inflow] of monthMap.entries()) {
+    fallbackRows.push({ dateKey: `${ym}-01`, periodType: "month", inflow });
+  }
+  for (const [y, inflow] of yearMap.entries()) {
+    fallbackRows.push({ dateKey: `${y}-01-01`, periodType: "year", inflow });
+  }
+
+  return fallbackRows.sort((a, b) => {
+    if (a.periodType === b.periodType) return a.dateKey.localeCompare(b.dateKey);
+    return a.periodType.localeCompare(b.periodType);
+  });
+}
+
 export async function fetchKeywordTargets(params: {
   hospitalId: string | "all";
   isAdmin: boolean;
@@ -663,8 +749,7 @@ export async function fetchKeywordTargets(params: {
   let q = supabase
     .schema("analytics")
     .from("analytics_blog_keyword_targets")
-    .select("id,account_id,hospital_id,keyword,is_active,priority,source,updated_at")
-    .order("priority", { ascending: true })
+    .select("id,account_id,hospital_id,keyword,is_active,source,metadata,created_at,updated_at")
     .order("keyword", { ascending: true });
 
   if (!params.isAdmin || params.hospitalId !== "all") {
@@ -683,7 +768,6 @@ export async function insertKeywordTarget(input: {
   account_id: string;
   hospital_id: string;
   keyword: string;
-  priority?: number;
 }) {
   const supabase = getSupabaseClient();
   const keyword = input.keyword.trim();
@@ -694,7 +778,6 @@ export async function insertKeywordTarget(input: {
     hospital_id: input.hospital_id,
     keyword,
     is_active: true,
-    priority: input.priority ?? 100,
     source: "dashboard",
     updated_at: new Date().toISOString(),
   });
@@ -703,7 +786,7 @@ export async function insertKeywordTarget(input: {
 
 export async function updateKeywordTarget(
   id: number,
-  patch: Partial<Pick<KeywordTargetRow, "is_active" | "priority" | "keyword">>
+  patch: Partial<Pick<KeywordTargetRow, "is_active" | "keyword">>
 ) {
   const supabase = getSupabaseClient();
   const { error } = await supabase

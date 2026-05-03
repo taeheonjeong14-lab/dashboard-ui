@@ -99,10 +99,10 @@ export default function SummaryPage() {
       <SummaryHeader />
 
       <div className="mt-3 flex flex-col border-t border-zinc-800 divide-y divide-zinc-800">
-        <div className="grid grid-cols-1 gap-px lg:grid-cols-2">
+        <div className="grid grid-cols-1 lg:grid-cols-2">
           <section
             aria-labelledby="summary-revenue"
-            className="min-w-0 bg-zinc-950 p-4 sm:p-5"
+            className="min-w-0 border-b border-zinc-800 bg-zinc-950 p-4 sm:p-5"
           >
             <h2 id="summary-revenue" className="mb-1 text-base font-semibold text-zinc-100 sm:text-lg">
               병원 일별 매출
@@ -123,7 +123,7 @@ export default function SummaryPage() {
 
           <section
             aria-labelledby="summary-patients"
-            className="min-w-0 bg-zinc-950 p-4 sm:p-5"
+            className="min-w-0 border-b border-zinc-800 bg-zinc-950 p-4 sm:p-5 lg:border-l lg:border-zinc-800"
           >
             <h2 id="summary-patients" className="mb-1 text-base font-semibold text-zinc-100 sm:text-lg">
               일별 신규 환자 유입
@@ -147,6 +147,7 @@ export default function SummaryPage() {
           hospitalId={hospitalId}
           loading={loading}
           headingId="summary-blog-rank"
+          variant="simple"
         />
 
         <section aria-labelledby="summary-place-rank" className="bg-zinc-950 p-4 sm:p-5">
@@ -156,14 +157,14 @@ export default function SummaryPage() {
           <p className="mb-3 text-sm text-zinc-500">
             가장 최신 수집 기준, 주요 키워드별 스마트플레이스 노출 순위입니다.
           </p>
-          {loading && <p className="text-sm text-zinc-400">데이터를 불러오는 중...</p>}
+          {loading && <p className="text-sm text-zinc-500">불러오는 중…</p>}
           {!loading && placeRanks.length === 0 && (
             <p className="border border-zinc-800 bg-zinc-900/50 p-4 text-sm text-zinc-500">
-              표시할 순위 데이터가 없습니다.
+              표시할 데이터가 없습니다.
             </p>
           )}
           {!loading && placeRanks.length > 0 && (
-            <div className="overflow-x-auto border border-zinc-800 bg-zinc-900/30">
+            <div className="overflow-x-auto">
               <table className="w-full min-w-[460px] border-collapse text-left text-sm">
                 <thead>
                   <tr className="border-b border-zinc-800 text-zinc-400">

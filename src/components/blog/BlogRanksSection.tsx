@@ -6,6 +6,7 @@ import {
   type BlogRankSummaryRow,
   type BlogRankTrendPoint,
 } from "@/lib/queries";
+import { dashboardBlogPreviewRequestUrl } from "@/lib/dashboard-api";
 
 function formatRank(value: number): string {
   return `${new Intl.NumberFormat("ko-KR").format(value)}위`;
@@ -72,6 +73,8 @@ export type BlogRanksSectionProps = {
   description?: string;
   /** aria-labelledby 용 id */
   headingId?: string;
+  /** HOME 요약에서는 단순 표, 블로그 페이지에서는 상세 표기 */
+  variant?: "detailed" | "simple";
 };
 
 type RankEntry = {
@@ -141,6 +144,7 @@ export default function BlogRanksSection({
   title = "주요 키워드 · 블로그 노출 순위",
   description = "가장 최신 수집 기준, 주요 키워드별 네이버 블로그 노출 순위입니다.",
   headingId = "blog-ranks-section",
+  variant = "detailed",
 }: BlogRanksSectionProps) {
   const [previewTitles, setPreviewTitles] = useState<Record<string, PreviewTitleData>>({});
   const [trendCache, setTrendCache] = useState<Record<string, BlogRankTrendPoint[]>>({});
@@ -176,7 +180,7 @@ export default function BlogRanksSection({
     Promise.all(
       pending.map(async (url) => {
         try {
-          const res = await fetch(`/api/blog/preview?url=${encodeURIComponent(url)}`);
+          const res = await fetch(dashboardBlogPreviewRequestUrl(url));
           const data = (await res.json()) as
             | { ok: true; title: string | null; finalUrl: string }
             | { ok: false };
@@ -336,7 +340,10 @@ export default function BlogRanksSection({
 
   return (
     <>
-      <section aria-labelledby={headingId} className="bg-zinc-800/50 p-4 sm:p-5">
+      <section
+        aria-labelledby={headingId}
+        className={`${variant === "simple" ? "" : "bg-zinc-800/50 "}p-4 sm:p-5`}
+      >
         <h2 id={headingId} className="mb-2 text-base font-semibold text-zinc-100 sm:text-lg">
           {title}
         </h2>
@@ -348,53 +355,87 @@ export default function BlogRanksSection({
           </p>
         )}
         {!loading && rows.length > 0 && (
-          <div className="flex flex-col gap-4">
-            {PARTS.map((part) => {
-              const entries = pickPartEntries(rows, part);
-              return (
-                <div key={part.id}>
-                  <h3 className="mb-1 text-sm font-semibold text-zinc-200">{part.title}</h3>
-                  {entries.length === 0 ? (
-                    <p className="text-xs italic text-zinc-600">표시할 키워드가 없습니다.</p>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full border-collapse text-left text-sm">
-                        <thead>
-                          <tr className="border-b border-zinc-800 text-zinc-400">
-                            <th className="py-1.5 pr-2 font-medium">검색어</th>
-                            <th className="py-1.5 px-2 font-medium">순위</th>
-                            <th className="py-1.5 pl-2 font-medium">컨텐츠</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {entries.map((entry) => (
-                            <tr
-                              key={`${part.id}:${entry.keyword}`}
-                              className="border-b border-zinc-800/70 text-zinc-200"
-                            >
-                              <td className="py-1.5 pr-2">{entry.keyword}</td>
-                              <td className="py-1.5 px-2">
-                                {renderRankCell(
-                                  entry,
-                                  trendByKeyword.get(entry.keyword)?.[part.trendKey] ?? 0,
-                                  entry.keyword,
-                                  part
-                                )}
-                              </td>
-                              <td className="py-1.5 pl-2">{renderContentCell(entry)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+          <>
+            {variant === "simple" ? (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[620px] border-collapse text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-zinc-800 text-zinc-400">
+                      <th className="py-1.5 pr-2 font-medium">검색어</th>
+                      {PARTS.map((part) => (
+                        <th key={part.id} className="py-1.5 px-2 font-medium">
+                          {part.title}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((row) => (
+                      <tr key={row.keyword} className="border-b border-zinc-800/70 text-zinc-200">
+                        <td className="py-1.5 pr-2">{row.keyword}</td>
+                        {PARTS.map((part) => {
+                          const rank = row[part.rankKey];
+                          return (
+                            <td key={`${row.keyword}:${part.id}`} className="py-1.5 px-2">
+                              {rank == null ? <span className="text-zinc-500">-</span> : formatRank(rank)}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {PARTS.map((part) => {
+                  const entries = pickPartEntries(rows, part);
+                  return (
+                    <div key={part.id}>
+                      <h3 className="mb-1 text-sm font-semibold text-zinc-200">{part.title}</h3>
+                      {entries.length === 0 ? (
+                        <p className="text-xs italic text-zinc-600">표시할 키워드가 없습니다.</p>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="w-full border-collapse text-left text-sm">
+                            <thead>
+                              <tr className="border-b border-zinc-800 text-zinc-400">
+                                <th className="py-1.5 pr-2 font-medium">검색어</th>
+                                <th className="py-1.5 px-2 font-medium">순위</th>
+                                <th className="py-1.5 pl-2 font-medium">컨텐츠</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {entries.map((entry) => (
+                                <tr
+                                  key={`${part.id}:${entry.keyword}`}
+                                  className="border-b border-zinc-800/70 text-zinc-200"
+                                >
+                                  <td className="py-1.5 pr-2">{entry.keyword}</td>
+                                  <td className="py-1.5 px-2">
+                                    {renderRankCell(
+                                      entry,
+                                      trendByKeyword.get(entry.keyword)?.[part.trendKey] ?? 0,
+                                      entry.keyword,
+                                      part
+                                    )}
+                                  </td>
+                                  <td className="py-1.5 pl-2">{renderContentCell(entry)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
         )}
       </section>
-      {renderTrendPopover()}
+      {variant === "detailed" ? renderTrendPopover() : null}
     </>
   );
 }

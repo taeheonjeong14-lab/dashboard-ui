@@ -87,17 +87,9 @@ export default function HospitalManagementPage() {
 
   return (
     <main className="w-full max-w-none px-4 py-4 sm:px-5 sm:py-5 lg:px-6">
-      <header className="mb-3">
-        <h1 className="text-2xl font-bold text-zinc-50">경영 통계</h1>
-        <p className="mt-1 text-sm text-zinc-400">
-          매출·진료건수·신규 환자 유입을 기간·단위별로 보고, 전년 동월·요일별 패턴을 함께 확인합니다.
-        </p>
-      </header>
-
-
       {loading && <p className="mb-2 text-sm text-zinc-500">불러오는 중…</p>}
 
-      <div className="flex flex-col border-t border-zinc-800 divide-y divide-zinc-800">
+      <div className="flex flex-col divide-y divide-zinc-800">
         <ManagementMetricSection
           title="매출"
           description="기간 내 일/월/연 단위 매출 추이와 전년 동월·요일별 분석을 함께 보여줍니다."

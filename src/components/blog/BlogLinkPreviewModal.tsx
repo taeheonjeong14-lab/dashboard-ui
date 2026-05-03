@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import {
+  dashboardBlogPreviewImageRequestUrl,
+  dashboardBlogPreviewRequestUrl,
+} from "@/lib/dashboard-api";
 
 type PreviewOk = {
   ok: true;
@@ -68,7 +72,7 @@ export default function BlogLinkPreviewModal({ open, url, label, onClose }: Blog
     setLoading(true);
     setPreview(null);
 
-    fetch(`/api/blog/preview?url=${encodeURIComponent(url)}`, { signal: controller.signal })
+    fetch(dashboardBlogPreviewRequestUrl(url), { signal: controller.signal })
       .then(async (res) => {
         const data = (await res.json()) as PreviewData;
         if (aborted) return;
@@ -106,7 +110,7 @@ export default function BlogLinkPreviewModal({ open, url, label, onClose }: Blog
 
   const previewImageUrl = useMemo(() => {
     if (!preview || !preview.ok || !preview.image) return null;
-    return `/api/blog/preview-image?url=${encodeURIComponent(preview.image)}`;
+    return dashboardBlogPreviewImageRequestUrl(preview.image);
   }, [preview]);
 
   if (!open) return null;
